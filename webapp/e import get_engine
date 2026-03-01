@@ -1,0 +1,52 @@
+ vm_uuid              | uuid
+ vm_id                | bigint
+ name                 | character varying
+ vmtype               | character varying
+ platform_type        | character varying
+ az_id                | uuid
+ host_id              | character varying
+ group_id             | uuid
+ storage_id           | character varying
+ project_id           | character varying
+ project_name         | character varying
+ user_id              | character varying
+ user_name            | character varying
+ os_type              | character varying
+ os_name              | character varying
+ os_installed         | smallint
+ os_arch              | character varying
+ os_kernel            | character varying
+ os_distribution      | character varying
+ cpu_sockets          | smallint
+ cpu_cores            | smallint
+ cpu_cores_per_socket | smallint
+ cpu_total_mhz        | numeric
+ memory_total_mb      | numeric
+ storage_total_mb     | numeric
+ has_gpu              | boolean
+ gpu_conf             | jsonb
+ vtool_installed      | boolean
+ encrypted            | boolean
+ balloon_memory       | boolean
+ onboot               | boolean
+ abnormal_recovery    | boolean
+ vga_type             | character varying
+ protection_id        | uuid
+ protection_enabled   | boolean
+ in_protection        | boolean
+ backup_policy_enable | boolean
+ backup_file_count    | integer
+ template_id          | character varying
+ image_id             | character varying
+ image_name           | character varying
+ expire_time          | character varying
+ tags                 | ARRAY
+ description          | text
+ first_seen_at        | timestamp with time zone
+ last_seen_at         | timestamp with time zone
+ config_updated_at    | timestamp with time zone
+ is_deleted           | boolean
+ deleted_at           | timestamp with time zone
+ os_display_name      | character varying
+ uptime_seconds       | bigint
+

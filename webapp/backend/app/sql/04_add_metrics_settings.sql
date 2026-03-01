@@ -1,0 +1,9 @@
+-- Add metrics settings columns to sync.config
+
+ALTER TABLE sync.config 
+ADD COLUMN IF NOT EXISTS collect_metrics BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS collection_interval_seconds INTEGER DEFAULT 60,
+ADD COLUMN IF NOT EXISTS retain_raw_days INTEGER DEFAULT 7,
+ADD COLUMN IF NOT EXISTS retain_hourly_days INTEGER DEFAULT 30,
+ADD COLUMN IF NOT EXISTS retain_daily_days INTEGER DEFAULT 365,
+ADD COLUMN IF NOT EXISTS auto_aggregate BOOLEAN DEFAULT TRUE;

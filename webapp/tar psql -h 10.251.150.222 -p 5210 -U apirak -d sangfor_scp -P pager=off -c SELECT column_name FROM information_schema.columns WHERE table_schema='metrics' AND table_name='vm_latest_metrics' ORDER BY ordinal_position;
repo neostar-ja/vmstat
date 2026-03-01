@@ -1,0 +1,22 @@
+                        Table "metrics.vm_latest_metrics"
+       Column        |           Type           | Collation | Nullable | Default 
+---------------------+--------------------------+-----------+----------+---------
+ vm_uuid             | uuid                     |           | not null | 
+ collected_at        | timestamp with time zone |           | not null | 
+ power_state         | character varying(20)    |           |          | 
+ status              | character varying(20)    |           |          | 
+ uptime_seconds      | bigint                   |           |          | 
+ cpu_ratio           | numeric(5,4)             |           |          | 
+ cpu_used_mhz        | numeric(12,2)            |           |          | 
+ memory_ratio        | numeric(5,4)             |           |          | 
+ memory_used_mb      | numeric(12,2)            |           |          | 
+ storage_ratio       | numeric(5,4)             |           |          | 
+ storage_used_mb     | numeric(15,2)            |           |          | 
+ network_read_bitps  | numeric(15,2)            |           |          | 
+ network_write_bitps | numeric(15,2)            |           |          | 
+ disk_read_iops      | numeric(12,2)            |           |          | 
+ disk_write_iops     | numeric(12,2)            |           |          | 
+Indexes:
+    "vm_latest_metrics_pkey" PRIMARY KEY, btree (vm_uuid)
+    "idx_vm_latest_metrics_state" btree (power_state)
+

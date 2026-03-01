@@ -1,0 +1,25 @@
+                                                 Table "sangfor.vm_alarms"
+      Column       |           Type           | Collation | Nullable |                       Default                       
+-------------------+--------------------------+-----------+----------+-----------------------------------------------------
+ alarm_id          | integer                  |           | not null | nextval('sangfor.vm_alarms_alarm_id_seq'::regclass)
+ vm_uuid           | uuid                     |           | not null | 
+ external_alarm_id | text                     |           |          | 
+ source            | text                     |           | not null | 
+ severity          | text                     |           |          | 
+ title             | text                     |           | not null | 
+ description       | text                     |           |          | 
+ status            | text                     |           | not null | 'open'::text
+ object_type       | text                     |           |          | 
+ begin_time        | timestamp with time zone |           |          | 
+ end_time          | timestamp with time zone |           |          | 
+ created_at        | timestamp with time zone |           |          | CURRENT_TIMESTAMP
+ updated_at        | timestamp with time zone |           |          | CURRENT_TIMESTAMP
+Indexes:
+    "vm_alarms_pkey" PRIMARY KEY, btree (alarm_id)
+    "idx_vm_alarms_begin_time" btree (begin_time)
+    "idx_vm_alarms_dedup" UNIQUE, btree (vm_uuid, title, begin_time)
+    "idx_vm_alarms_status" btree (status)
+    "idx_vm_alarms_vm_uuid" btree (vm_uuid)
+Foreign-key constraints:
+    "vm_alarms_vm_uuid_fkey" FOREIGN KEY (vm_uuid) REFERENCES sangfor.vm_master(vm_uuid) ON DELETE CASCADE
+

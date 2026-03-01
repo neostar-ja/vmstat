@@ -1,0 +1,443 @@
+import {
+    Box,
+    Card,
+    Chip,
+    Skeleton,
+    LinearProgress,
+    IconButton,
+} from '@mui/material';
+import {
+    Computer as VmIcon,
+    PlayArrow as RunningIcon,
+    Memory as MemoryIcon,
+    Speed as CpuIcon,
+    Warning as WarningIcon,
+    Dns as HostIcon,
+    Folder as GroupIcon,
+    TrendingUp as TrendingUpIcon,
+    Refresh as RefreshIcon,
+    MoreVert as MoreIcon,
+    CheckCircle as CheckIcon,
+    Error as ErrorIcon,
+    Schedule as ScheduleIcon,
+    CloudDone as CloudIcon,
+    Security as SecurityIcon,
+} from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { dashboardApi, metricsApi } from '../services/api';
+import type { DashboardSummary, TopVM, GroupSummary } from '../types';
+import AlarmsCard from '../components/AlarmsCard';
+
+// ----------------------------------------------------------------------
+// Premium UI Components with TailwindCSS
+// ----------------------------------------------------------------------
+
+const StatCard = ({ title, value, subtitle, icon, gradientFrom, gradientTo, trendValue, isLoading }: any) => (
+    <div className="relative overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm hover:shadow-xl transition-all duration-300 h-full p-6 group">
+        <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-20 blur-2xl transition-transform duration-500 group-hover:scale-150`} style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}></div>
+        <div className="relative z-10 flex flex-col h-full justify-between">
+            <div className="flex justify-between items-start mb-4">
+                <div
+                    className="flex text-white items-center justify-center w-14 h-14 rounded-2xl shadow-lg"
+                    style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
+                >
+                    {icon}
+                </div>
+                {trendValue && (
+                    <div className="flex items-center gap-1 bg-green-100/80 dark:bg-green-500/10 text-green-600 dark:text-green-400 px-3 py-1 rounded-full text-xs font-bold">
+                        <TrendingUpIcon sx={{ fontSize: 16 }} />
+                        {trendValue}
+                    </div>
+                )}
+            </div>
+            <div>
+                <h3 className="text-slate-500 dark:text-slate-400 text-sm font-semibold mb-1">{title}</h3>
+                {isLoading ? (
+                    <Skeleton width="60%" height={40} className="rounded-lg" />
+                ) : (
+                    <h2 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight">{value}</h2>
+                )}
+                <p className="text-slate-400 dark:text-slate-500 text-xs mt-2 font-medium">{subtitle}</p>
+            </div>
+        </div>
+    </div>
+);
+
+const ResourceCard = ({ title, value, subtitle, icon, color, isLoading }: any) => {
+    const isCritical = value >= 90;
+    const isWarning = value >= 80 && value < 90;
+    const displayColor = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : color;
+
+    return (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all h-full p-6">
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-50 dark:bg-slate-800" style={{ color: displayColor }}>
+                        {icon}
+                    </div>
+                    <h3 className="text-slate-700 dark:text-slate-200 font-bold">{title}</h3>
+                </div>
+                {isCritical && <Chip size="small" icon={<ErrorIcon sx={{ fontSize: 14 }} />} label="Critical" color="error" sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700 }} />}
+                {isWarning && <Chip size="small" icon={<WarningIcon sx={{ fontSize: 14 }} />} label="Warning" color="warning" sx={{ height: 24, fontSize: '0.7rem', fontWeight: 700 }} />}
+            </div>
+
+            {isLoading ? (
+                <Skeleton width="100%" height={60} className="rounded-lg" />
+            ) : (
+                <>
+                    <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-3xl font-extrabold" style={{ color: displayColor }}>{value.toFixed(1)}</span>
+                        <span className="text-lg font-semibold text-slate-400">%</span>
+                        {subtitle && <span className="text-sm font-medium text-slate-400 ml-2">{subtitle}</span>}
+                    </div>
+                    <LinearProgress
+                        variant="determinate"
+                        value={Math.min(value, 100)}
+                        sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            bgcolor: 'action.hover',
+                            '& .MuiLinearProgress-bar': {
+                                borderRadius: 4,
+                                backgroundColor: displayColor
+                            }
+                        }}
+                    />
+                </>
+            )}
+        </div>
+    );
+};
+
+const TopVMsCard = ({ title, data, isLoading, type }: any) => {
+    const isCpu = type === 'cpu';
+    const gradientFrom = isCpu ? '#0ea5e9' : '#10b981';
+    const gradientTo = isCpu ? '#3b82f6' : '#34d399';
+
+    return (
+        <Card className="h-full flex flex-col rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md" style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}>
+                        {isCpu ? <CpuIcon /> : <MemoryIcon />}
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-800 dark:text-white text-base">{title}</h3>
+                        <p className="text-xs text-slate-500 font-medium">Top 5 Resource Consumers</p>
+                    </div>
+                </div>
+                <IconButton size="small" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                    <MoreIcon fontSize="small" />
+                </IconButton>
+            </div>
+            <div className="flex-1 overflow-auto p-2">
+                {isLoading ? (
+                    <div className="p-4 space-y-3">
+                        {[...Array(5)].map((_, i) => <Skeleton key={i} height={48} className="rounded-xl" />)}
+                    </div>
+                ) : data?.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-slate-400 p-8 text-sm font-medium">ไม่พบข้อมูล</div>
+                ) : (
+                    data?.slice(0, 5).map((vm: any, index: number) => (
+                        <div key={vm.vm_uuid} className="group flex items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold mr-4 ${index < 3 ? 'text-white' : 'text-slate-500 bg-slate-100 dark:bg-slate-800'}`} style={index < 3 ? { background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` } : {}}>
+                                {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0 mr-4">
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{vm.vm_name}</h4>
+                                <p className="text-xs text-slate-400 truncate">{vm.group_name || 'No Group'}</p>
+                            </div>
+                            <div className="text-right">
+                                <span className={`text-sm font-bold ${vm.current_usage >= 90 ? 'text-red-500' : vm.current_usage >= 80 ? 'text-yellow-500' : isCpu ? 'text-sky-500' : 'text-emerald-500'}`}>
+                                    {(vm.current_usage || 0).toFixed(1)}%
+                                </span>
+                                <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-1 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{
+                                            width: `${Math.min(vm.current_usage || 0, 100)}%`,
+                                            backgroundColor: vm.current_usage >= 90 ? '#ef4444' : vm.current_usage >= 80 ? '#f59e0b' : gradientFrom
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </Card>
+    );
+};
+
+const GroupsCard = ({ data, isLoading }: any) => (
+    <Card className="h-full flex flex-col rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md" style={{ background: 'linear-gradient(135deg, #8b5cf6, #d946ef)' }}>
+                    <GroupIcon />
+                </div>
+                <div>
+                    <h3 className="font-bold text-slate-800 dark:text-white text-base">VM Groups</h3>
+                    <p className="text-xs text-slate-500 font-medium">กลุ่ม VM ทั้งหมด</p>
+                </div>
+            </div>
+            <IconButton size="small" className="text-slate-400">
+                <MoreIcon fontSize="small" />
+            </IconButton>
+        </div>
+        <div className="flex-1 overflow-auto p-2">
+            {isLoading ? (
+                <div className="p-4 space-y-3">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} height={48} className="rounded-xl" />)}
+                </div>
+            ) : data.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-slate-400 p-8 text-sm font-medium">ไม่พบกลุ่ม VM</div>
+            ) : (
+                data.slice(0, 4).map((group: any) => (
+                    <div key={group.group_id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-purple-100/50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-sm">
+                                {group.group_name.charAt(0).toUpperCase()}
+                            </div>
+                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{group.group_name}</h4>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="flex items-center gap-1 bg-green-100/50 dark:bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded-lg text-xs font-bold">
+                                <span>▶</span> {group.running_vms}
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-lg text-xs font-bold">
+                                {group.total_vms} VMs
+                            </div>
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+    </Card>
+);
+
+const QuickStatusCard = ({ isLoading, unprotectedCount }: { isLoading: boolean, unprotectedCount: number }) => {
+    const items = [
+        { icon: <CloudIcon />, label: 'Backup Status', value: unprotectedCount > 0 ? `${unprotectedCount} VMs Unprotected` : 'Fully Protected', color: unprotectedCount > 0 ? '#ef4444' : '#22c55e', bgColorClass: unprotectedCount > 0 ? 'bg-red-50 dark:bg-red-500/10' : 'bg-green-50 dark:bg-green-500/10' },
+        { icon: <SecurityIcon />, label: 'Security', value: 'ระบบปกติ', color: '#0ea5e9', bgColorClass: 'bg-sky-50 dark:bg-sky-500/10' },
+        { icon: <ScheduleIcon />, label: 'Data Sync', value: 'Recent', color: '#8b5cf6', bgColorClass: 'bg-purple-50 dark:bg-purple-500/10' },
+    ];
+
+    return (
+        <Card className="h-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
+                    <span className="text-xl">🔔</span> สถานะระบบ (System)
+                </h3>
+            </div>
+
+            <div className="space-y-4">
+                {isLoading ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => <Skeleton key={i} height={60} className="rounded-xl" />)}
+                    </div>
+                ) : (
+                    items.map((item, index) => (
+                        <div key={index} className={`flex items-center gap-4 p-3 rounded-2xl ${item.bgColorClass} border`} style={{ borderColor: `${item.color}20` }}>
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
+                                {item.icon}
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-xs text-slate-500 font-medium">{item.label}</p>
+                                <p className="text-sm font-bold" style={{ color: item.color }}>{item.value}</p>
+                            </div>
+                            {item.color === '#ef4444' ? <WarningIcon sx={{ color: item.color }} fontSize="small" /> : <CheckIcon sx={{ color: item.color }} fontSize="small" />}
+                        </div>
+                    ))
+                )}
+            </div>
+        </Card>
+    );
+};
+
+// ----------------------------------------------------------------------
+// Main Dashboard Page
+// ----------------------------------------------------------------------
+
+export default function DashboardPage() {
+    const { data: summary, isLoading: summaryLoading } = useQuery<{ data: DashboardSummary }>({
+        queryKey: ['dashboard-summary'],
+        queryFn: () => dashboardApi.getSummary(),
+        refetchInterval: 30000,
+    });
+
+    const { data: alarmsResponse, isLoading: alarmsLoading } = useQuery({
+        queryKey: ['alarms', 'active'],
+        queryFn: () => dashboardApi.getActiveAlarms(),
+        refetchInterval: 30000,
+    });
+    const alarmsData = alarmsResponse?.data || [];
+
+    const { data: topConsumersData, isLoading: topConsumersLoading } = useQuery({
+        queryKey: ['metrics-top-consumers'],
+        queryFn: () => metricsApi.getTopConsumers(10),
+        refetchInterval: 60000,
+    });
+
+    const { data: topCpuVMs, isLoading: cpuLoading } = useQuery<{ data: TopVM[] }>({
+        queryKey: ['top-cpu-vms'],
+        queryFn: () => dashboardApi.getTopCpuVMs(10),
+        enabled: !topConsumersData?.data?.by_cpu?.length,
+    });
+
+    const { data: topMemoryVMs, isLoading: memoryLoading } = useQuery<{ data: TopVM[] }>({
+        queryKey: ['top-memory-vms'],
+        queryFn: () => dashboardApi.getTopMemoryVMs(10),
+        enabled: !topConsumersData?.data?.by_memory?.length,
+    });
+
+    const { data: groups, isLoading: groupsLoading } = useQuery<{ data: GroupSummary[] }>({
+        queryKey: ['groups-summary'],
+        queryFn: () => dashboardApi.getGroups(),
+    });
+
+    const topCpuData = topConsumersData?.data?.by_cpu?.length
+        ? topConsumersData.data.by_cpu.map((item: any) => ({
+            vm_uuid: item.vm_uuid,
+            vm_name: item.vm_name,
+            current_usage: item.percentage || item.value * 100,
+            group_name: '',
+        }))
+        : topCpuVMs?.data || [];
+
+    const topMemoryData = topConsumersData?.data?.by_memory?.length
+        ? topConsumersData.data.by_memory.map((item: any) => ({
+            vm_uuid: item.vm_uuid,
+            vm_name: item.vm_name,
+            current_usage: item.percentage || item.value * 100,
+            group_name: '',
+        }))
+        : topMemoryVMs?.data || [];
+
+    const stats = summary?.data;
+
+    return (
+        <Box className="animate-fade-in p-4 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-emerald-500 tracking-tight">
+                        Executive Dashboard
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
+                        ภาพรวมระบบ Virtual Machine Infrastructure แบะแดชบอร์ดสรุปผล
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <button className="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl font-bold shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-all flex items-center gap-2">
+                        <RefreshIcon fontSize="small" /> Refresh
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="space-y-6">
+
+                {/* 1. Primary Highlight Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatCard
+                        title="Total Virtual Machines"
+                        value={stats?.total_vms || 0}
+                        icon={<VmIcon fontSize="large" />}
+                        gradientFrom="#0ea5e9"
+                        gradientTo="#38bdf8"
+                        trendValue="+2 this week"
+                        isLoading={summaryLoading}
+                    />
+                    <StatCard
+                        title="Running VMs"
+                        value={stats?.running_vms || 0}
+                        icon={<RunningIcon fontSize="large" />}
+                        gradientFrom="#10b981"
+                        gradientTo="#34d399"
+                        subtitle={`${stats?.stopped_vms || 0} Stopped`}
+                        isLoading={summaryLoading}
+                    />
+                    <StatCard
+                        title="Physical Hosts"
+                        value={stats?.total_hosts || 0}
+                        icon={<HostIcon fontSize="large" />}
+                        gradientFrom="#8b5cf6"
+                        gradientTo="#a855f7"
+                        subtitle={`${stats?.total_groups || 0} Resource Groups`}
+                        isLoading={summaryLoading}
+                    />
+                    <StatCard
+                        title="Active Alarms"
+                        value={stats?.vms_with_alarms || 0}
+                        icon={<WarningIcon fontSize="large" />}
+                        gradientFrom="#ef4444"
+                        gradientTo="#f87171"
+                        trendValue={stats?.vms_with_alarms && stats.vms_with_alarms > 0 ? "Attention Needed" : undefined}
+                        isLoading={summaryLoading}
+                    />
+                </div>
+
+                {/* 2. Resource Utilization & Core Metrics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    {/* CPU & Memory Aggregates */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <ResourceCard
+                            title="Average CPU"
+                            value={stats?.avg_cpu_usage || 0}
+                            icon={<CpuIcon />}
+                            color="#0ea5e9"
+                            isLoading={summaryLoading}
+                        />
+                        <ResourceCard
+                            title="Average Memory"
+                            value={stats?.avg_memory_usage || 0}
+                            icon={<MemoryIcon />}
+                            color="#10b981"
+                            isLoading={summaryLoading}
+                        />
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-center relative overflow-hidden group">
+                            <div className="absolute right-0 bottom-0 w-24 h-24 bg-purple-500/10 rounded-tl-full transition-transform group-hover:scale-125"></div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-bold mb-1 z-10">Total Allocated RAM</h3>
+                            <h2 className="text-3xl font-black text-slate-800 dark:text-white z-10">{(stats?.total_memory_gb || 0).toFixed(0)} <span className="text-lg text-slate-400 font-bold">GB</span></h2>
+                            <p className="text-xs text-slate-400 font-medium mt-2 z-10">Across all provisioned VMs</p>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-center relative overflow-hidden group">
+                            <div className="absolute right-0 bottom-0 w-24 h-24 bg-pink-500/10 rounded-tl-full transition-transform group-hover:scale-125"></div>
+                            <h3 className="text-slate-500 dark:text-slate-400 font-bold mb-1 z-10">Total Provisioned Storage</h3>
+                            <h2 className="text-3xl font-black text-slate-800 dark:text-white z-10">{(stats?.total_storage_tb || 0).toFixed(1)} <span className="text-lg text-slate-400 font-bold">TB</span></h2>
+                        </div>
+                    </div>
+
+                    {/* Active Alarms Feed */}
+                    <div className="h-full">
+                        <AlarmsCard
+                            title="System Alerts & Warnings"
+                            data={alarmsData.slice(0, 5)}
+                            isLoading={alarmsLoading}
+                        />
+                    </div>
+                </div>
+
+                {/* 3. Operational Insights */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="h-96">
+                        <TopVMsCard title="Top CPU Users" data={topCpuData} isLoading={topConsumersLoading || cpuLoading} type="cpu" />
+                    </div>
+                    <div className="h-96">
+                        <TopVMsCard title="Top Memory Users" data={topMemoryData} isLoading={topConsumersLoading || memoryLoading} type="memory" />
+                    </div>
+                    <div className="h-[450px] flex flex-col gap-6">
+                        <div className="flex-1 overflow-hidden">
+                            <GroupsCard data={groups?.data || []} isLoading={groupsLoading} />
+                        </div>
+                        <div className="shrink-0">
+                            <QuickStatusCard isLoading={summaryLoading} unprotectedCount={stats?.unprotected_vms || 0} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Box>
+    );
+}

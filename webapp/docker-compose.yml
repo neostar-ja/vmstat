@@ -1,0 +1,47 @@
+# version is not required by Compose V2 and may trigger a warning. The
+# configuration uses the latest Compose spec instead.
+services:
+  # Backend API
+  vmstat-backend:
+    container_name: vmstat-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-vmstat-production-secret-key-2026}
+    volumes:
+      - ../.env:/app/.env:ro
+    networks:
+      - vmstat-network
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/vmstat/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Frontend + Nginx
+  vmstat-frontend:
+    container_name: vmstat-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3345:443"
+    depends_on:
+      - vmstat-backend
+    networks:
+      - vmstat-network
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:443/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  vmstat-network:
+    driver: bridge

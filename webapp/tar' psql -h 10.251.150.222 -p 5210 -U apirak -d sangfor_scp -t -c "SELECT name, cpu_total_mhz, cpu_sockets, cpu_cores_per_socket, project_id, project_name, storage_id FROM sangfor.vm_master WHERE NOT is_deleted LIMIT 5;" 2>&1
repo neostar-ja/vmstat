@@ -1,0 +1,9 @@
+          name           | cpu_total_mhz | cpu_sockets | cpu_cores_per_socket |            project_id            | project_name | storage_id 
+-------------------------+---------------+-------------+----------------------+----------------------------------+--------------+------------
+ WUH-Zabbix-Ubuntu22     |               |           4 |                    1 | 6585482670ef46c7976ef286bc9f7adf | admin        | 
+ Xovic-OB-Server-Dev     |               |           1 |                    4 | 6585482670ef46c7976ef286bc9f7adf | admin        | 
+ WUH-ICCADEV             |               |           2 |                    8 | 6585482670ef46c7976ef286bc9f7adf | admin        | 
+ WUH-Xovic-Mobile_server |               |           1 |                    2 | 6585482670ef46c7976ef286bc9f7adf | admin        | 
+ WUH-SHARE-FILE-STORAGE  |               |           1 |                    2 | 6585482670ef46c7976ef286bc9f7adf | admin        | 
+(5 rows)
+

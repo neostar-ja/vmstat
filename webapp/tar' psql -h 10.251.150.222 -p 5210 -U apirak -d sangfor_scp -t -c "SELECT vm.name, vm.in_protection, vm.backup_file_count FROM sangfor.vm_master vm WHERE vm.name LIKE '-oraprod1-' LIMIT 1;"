@@ -1,0 +1,5 @@
+             name             | in_protection | protection_id | backup_file_count | storage_id |               vm_uuid                
+------------------------------+---------------+---------------+-------------------+------------+--------------------------------------
+ WUH-HIS-oraprod1.localdomain | f             |               |                 0 |            | 37980eb8-0ed4-4266-a4c8-57a57dbf8f16
+(1 row)
+

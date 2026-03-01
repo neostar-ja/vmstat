@@ -1,0 +1,925 @@
+import React, { useRef, useState, useEffect } from 'react';
+import {
+    Box,
+    Card,
+    CardContent,
+    Typography,
+    Grid,
+    Chip,
+    LinearProgress,
+    CircularProgress,
+    Alert,
+    IconButton,
+    Tooltip,
+    Paper,
+    useTheme,
+    alpha,
+    Fade,
+    Zoom,
+    Slide,
+    Avatar,
+    Stack,
+    Divider,
+    Badge,
+    ButtonGroup,
+    Button,
+    Container,
+} from '@mui/material';
+import {
+    Storage as StorageIcon,
+    TrendingUp as TrendingUpIcon,
+    TrendingDown as TrendingDownIcon,
+    TrendingFlat as TrendingFlatIcon,
+    CloudDone as CloudIcon,
+    Download as DownloadIcon,
+    Refresh as RefreshIcon,
+    Warning as WarningIcon,
+    CheckCircle as CheckCircleIcon,
+    Speed as SpeedIcon,
+    DataUsage as DataUsageIcon,
+    Timeline as TimelineIcon,
+    Assessment as AssessmentIcon,
+    Cloud as CloudStorageIcon,
+    Backup as BackupIcon,
+    Security as SecurityIcon,
+    Insights as InsightsIcon,
+    Analytics as AnalyticsIcon,
+    Dashboard as DashboardIcon,
+    Memory as MemoryIcon,
+    Computer as ComputerIcon,
+} from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { syncApi } from '../services/api';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip as RechartsTooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+    AreaChart,
+    Area,
+    LineChart,
+    Line,
+    RadialBarChart,
+    RadialBar,
+} from 'recharts';
+import html2canvas from 'html2canvas';
+
+// Types
+interface DatastoreData {
+    datastore_id: string;
+    name: string;
+    az_id: string | null;
+    az_name: string;
+    type: string;
+    status: string;
+    total_mb: number;
+    used_mb: number;
+    free_mb: number;
+    usage_percent: number;
+    change_yesterday_mb: number | null;
+    change_yesterday_percent: number | null;
+    change_week_mb: number | null;
+    change_week_percent: number | null;
+    updated_at: string;
+}
+
+// Modern Color Palettes
+const GRADIENT_COLORS = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+];
+
+const STATUS_COLORS = {
+    healthy: { main: '#10b981', light: '#d1fae5' },
+    warning: { main: '#f59e0b', light: '#fef3c7' },
+    danger: { main: '#ef4444', light: '#fee2e2' },
+    info: { main: '#3b82f6', light: '#dbeafe' },
+};
+
+// Format bytes with better precision
+const formatBytes = (mb: number): string => {
+    if (mb === 0) return '0 MB';
+    if (mb >= 1048576) return `${(mb / 1048576).toFixed(2)} TB`;
+    if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
+    return `${mb.toFixed(0)} MB`;
+};
+
+// Animated Counter Component
+const AnimatedCounter: React.FC<{ value: number; duration?: number; suffix?: string }> = ({ 
+    value, 
+    duration = 2000, 
+    suffix = '' 
+}) => {
+    const [displayValue, setDisplayValue] = useState(0);
+
+    useEffect(() => {
+        let startTime: number;
+        let animationId: number;
+
+        const animate = (timestamp: number) => {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            
+            setDisplayValue(Math.floor(progress * value));
+            
+            if (progress < 1) {
+                animationId = requestAnimationFrame(animate);
+            }
+        };
+
+        animationId = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(animationId);
+    }, [value, duration]);
+
+    return <>{displayValue}{suffix}</>;
+};
+
+// Enhanced Stat Card Component
+const EnhancedStatCard: React.FC<{
+    title: string;
+    value: string | number;
+    subtitle?: string;
+    icon: React.ReactNode;
+    gradient: string;
+    trend?: 'up' | 'down' | 'flat';
+    trendValue?: string;
+    delay?: number;
+}> = ({ title, value, subtitle, icon, gradient, trend, trendValue, delay = 0 }) => {
+    const getTrendIcon = () => {
+        const trendColor = trend === 'up' ? '#ef4444' : trend === 'down' ? '#10b981' : '#6b7280';
+        const TrendIcon = trend === 'up' ? TrendingUpIcon : trend === 'down' ? TrendingDownIcon : TrendingFlatIcon;
+        return <TrendIcon sx={{ fontSize: 16, color: trendColor }} />;
+    };
+
+    return (
+        <Zoom in timeout={800} style={{ transitionDelay: `${delay}ms` }}>
+            <Card
+                className="group hover:shadow-2xl transition-all duration-500 cursor-pointer"
+                sx={{
+                    background: `linear-gradient(145deg, ${gradient}15 0%, ${gradient}05 50%, transparent 100%)`,
+                    border: `1px solid ${gradient}20`,
+                    borderRadius: 4,
+                    height: '100%',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    backdropFilter: 'blur(20px)',
+                    transform: 'translateY(0px)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: `0 25px 50px -12px ${gradient}40`,
+                    },
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '4px',
+                        background: gradient,
+                        opacity: 0.8,
+                    }
+                }}
+            >
+                <CardContent sx={{ p: 3, height: '100%' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                        <Box>
+                            <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                    color: 'text.secondary', 
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}
+                            >
+                                {title}
+                            </Typography>
+                            <Typography 
+                                variant="h4" 
+                                sx={{ 
+                                    fontWeight: 800,
+                                    background: gradient,
+                                    backgroundClip: 'text',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    mb: 0.5
+                                }}
+                            >
+                                {typeof value === 'number' ? <AnimatedCounter value={value} /> : value}
+                            </Typography>
+                            {subtitle && (
+                                <Typography variant="caption" color="text.secondary">
+                                    {subtitle}
+                                </Typography>
+                            )}
+                        </Box>
+                        <Avatar
+                            sx={{
+                                background: gradient,
+                                width: 56,
+                                height: 56,
+                                boxShadow: `0 8px 32px ${gradient}40`,
+                                transition: 'all 0.3s ease',
+                                '.group:hover &': {
+                                    transform: 'rotate(360deg) scale(1.1)',
+                                }
+                            }}
+                        >
+                            {icon}
+                        </Avatar>
+                    </Box>
+                    
+                    {trend && trendValue && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 'auto' }}>
+                            {getTrendIcon()}
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: trend === 'up' ? '#ef4444' : trend === 'down' ? '#10b981' : '#6b7280',
+                                    fontWeight: 600
+                                }}
+                            >
+                                {trendValue}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                vs yesterday
+                            </Typography>
+                        </Box>
+                    )}
+                </CardContent>
+            </Card>
+        </Zoom>
+    );
+};
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 8px 24px ${gradient}30`,
+                },
+            }}
+        >
+            <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
+                            {title}
+                        </Typography>
+                        <Typography
+                            variant="h4"
+                            sx={{
+                                fontWeight: 800,
+                                background: gradient,
+                                backgroundClip: 'text',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                mb: 0.5,
+                            }}
+                        >
+                            {value}
+                        </Typography>
+                        {subtitle && (
+                            <Typography variant="caption" color="text.secondary">
+                                {subtitle}
+                            </Typography>
+                        )}
+                        {trend && trendValue && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
+                                {getTrendIcon()}
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                    {trendValue}
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
+                    <Box
+                        sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: `${gradient}20`,
+                            color: gradient,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        {icon}
+                    </Box>
+                </Box>
+            </CardContent>
+        </Card>
+    );
+};
+
+// Datastore Card Component
+const DatastoreCard: React.FC<{ data: DatastoreData; colorIndex: number }> = ({ data, colorIndex }) => {
+    const color = COLORS[colorIndex % COLORS.length];
+    const usagePercent = data.usage_percent;
+
+    // Determine status color
+    const getStatusColor = () => {
+        if (usagePercent >= 90) return '#ef4444';
+        if (usagePercent >= 75) return '#f59e0b';
+        return '#10b981';
+    };
+
+    const statusColor = getStatusColor();
+
+    // Calculate trend
+    const yesterdayTrend = data.change_yesterday_mb !== null ? (data.change_yesterday_mb > 0 ? 'up' : data.change_yesterday_mb < 0 ? 'down' : 'flat') : null;
+    const weekTrend = data.change_week_mb !== null ? (data.change_week_mb > 0 ? 'up' : data.change_week_mb < 0 ? 'down' : 'flat') : null;
+
+    return (
+        <Card
+            sx={{
+                background: `linear-gradient(135deg, ${color}10 0%, ${color}05 100%)`,
+                border: `1px solid ${color}30`,
+                borderRadius: 3,
+                height: '100%',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 12px 32px ${color}30`,
+                },
+            }}
+        >
+            <CardContent sx={{ p: 3 }}>
+                {/* Header */}
+{/* Header with Status */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                        <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <StorageIcon sx={{ color: gradient.split(' ')[2], fontSize: 24 }} />
+                                <Typography 
+                                    variant="h6" 
+                                    sx={{ 
+                                        fontWeight: 700,
+                                        background: gradient,
+                                        backgroundClip: 'text',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                    }}
+                                >
+                                    {data.name}
+                                </Typography>
+                            </Box>
+                            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                                <Chip
+                                    icon={<CloudIcon />}
+                                    label={data.az_name || 'Unknown'}
+                                    size="small"
+                                    sx={{
+                                        background: gradient,
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        fontSize: '0.7rem',
+                                        '& .MuiChip-icon': { color: 'white' }
+                                    }}
+                                />
+                                <Chip
+                                    label={data.type}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ 
+                                        fontSize: '0.7rem',
+                                        borderColor: gradient.split(' ')[2],
+                                        color: gradient.split(' ')[2]
+                                    }}
+                                />
+                            </Stack>
+                        </Box>
+                        
+                        <Badge
+                            badgeContent={
+                                <Box sx={{ 
+                                    width: 12, 
+                                    height: 12, 
+                                    borderRadius: '50%', 
+                                    bgcolor: isHealthy ? '#10b981' : '#ef4444',
+                                    animation: 'pulse 2s infinite'
+                                }} />
+                            }
+                        >
+                            <Avatar
+                                sx={{
+                                    bgcolor: statusColor.light,
+                                    color: statusColor.main,
+                                    width: 48,
+                                    height: 48,
+                                }}
+                            >
+                                {isHealthy ? <CheckCircleIcon /> : <WarningIcon />}
+                            </Avatar>
+                        </Badge>
+                </Box>
+
+                {/* Usage Progress */}
+                <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            การใช้งาน
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            fontWeight={700}
+                            sx={{ color: statusColor }}
+                        >
+                            {usagePercent.toFixed(2)}%
+                        </Typography>
+                    </Box>
+                    <LinearProgress
+                        variant="determinate"
+                        value={Math.min(usagePercent, 100)}
+                        sx={{
+                            height: 10,
+                            borderRadius: 5,
+                            bgcolor: alpha(statusColor, 0.1),
+                            '& .MuiLinearProgress-bar': {
+                                borderRadius: 5,
+                                background: `linear-gradient(90deg, ${statusColor}80, ${statusColor})`,
+                            },
+                        }}
+                    />
+                </Box>
+
+                {/* Storage Stats */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={4}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">
+                                ความจุทั้งหมด
+                            </Typography>
+                            <Typography variant="body2" fontWeight={700}>
+                                {formatBytes(data.total_mb)}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">
+                                ใช้ไปแล้ว
+                            </Typography>
+                            <Typography variant="body2" fontWeight={700} sx={{ color: statusColor }}>
+                                {formatBytes(data.used_mb)}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary">
+                                พื้นที่ว่าง
+                            </Typography>
+                            <Typography variant="body2" fontWeight={700} sx={{ color: '#10b981' }}>
+                                {formatBytes(data.free_mb)}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                </Grid>
+
+                {/* Trend Comparison */}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 2,
+                        pt: 2,
+                        borderTop: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    {/* Yesterday */}
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            เมื่อวาน
+                        </Typography>
+                        {data.change_yesterday_mb !== null ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {yesterdayTrend === 'up' && <TrendingUpIcon sx={{ fontSize: 16, color: '#ef4444' }} />}
+                                {yesterdayTrend === 'down' && <TrendingDownIcon sx={{ fontSize: 16, color: '#10b981' }} />}
+                                {yesterdayTrend === 'flat' && <TrendingFlatIcon sx={{ fontSize: 16, color: '#6b7280' }} />}
+                                <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    sx={{
+                                        color: yesterdayTrend === 'up' ? '#ef4444' : yesterdayTrend === 'down' ? '#10b981' : '#6b7280',
+                                    }}
+                                >
+                                    {data.change_yesterday_mb > 0 ? '+' : ''}
+                                    {formatBytes(Math.abs(data.change_yesterday_mb))}
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                N/A
+                            </Typography>
+                        )}
+                    </Box>
+
+                    {/* 7 Days */}
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            7 วันก่อน
+                        </Typography>
+                        {data.change_week_mb !== null ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {weekTrend === 'up' && <TrendingUpIcon sx={{ fontSize: 16, color: '#ef4444' }} />}
+                                {weekTrend === 'down' && <TrendingDownIcon sx={{ fontSize: 16, color: '#10b981' }} />}
+                                {weekTrend === 'flat' && <TrendingFlatIcon sx={{ fontSize: 16, color: '#6b7280' }} />}
+                                <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    sx={{
+                                        color: weekTrend === 'up' ? '#ef4444' : weekTrend === 'down' ? '#10b981' : '#6b7280',
+                                    }}
+                                >
+                                    {data.change_week_mb > 0 ? '+' : ''}
+                                    {formatBytes(Math.abs(data.change_week_mb))}
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                N/A
+                            </Typography>
+                        )}
+                    </Box>
+                </Box>
+            </CardContent>
+        </Card>
+    );
+};
+
+// Main Component
+const DataStoreDashboard: React.FC = () => {
+    const theme = useTheme();
+    const dashboardRef = useRef<HTMLDivElement>(null);
+
+    // Fetch dashboard data
+    const { data, isLoading, error, refetch } = useQuery({
+        queryKey: ['datastore-dashboard-data'],
+        queryFn: async () => {
+            const res = await syncApi.getDatastoreDashboardData();
+            return res.data;
+        },
+        refetchInterval: 60000, // Refresh every minute
+    });
+
+    const datastores: DatastoreData[] = data?.data || [];
+
+    // Calculate summary stats
+    const totalCapacity = datastores.reduce((sum, ds) => sum + ds.total_mb, 0);
+    const totalUsed = datastores.reduce((sum, ds) => sum + ds.used_mb, 0);
+    const totalFree = totalCapacity - totalUsed;
+    const avgUsagePercent = datastores.length > 0 ? totalUsed / totalCapacity * 100 : 0;
+
+    const criticalCount = datastores.filter(ds => ds.usage_percent >= 90).length;
+    const warningCount = datastores.filter(ds => ds.usage_percent >= 75 && ds.usage_percent < 90).length;
+    const healthyCount = datastores.filter(ds => ds.usage_percent < 75).length;
+
+    // Prepare chart data
+    const pieData = [
+        { name: 'ใช้แล้ว', value: totalUsed, color: '#ef4444' },
+        { name: 'ว่าง', value: totalFree, color: '#10b981' },
+    ];
+
+    const barData = datastores.map(ds => ({
+        name: ds.name.length > 15 ? ds.name.substring(0, 15) + '...' : ds.name,
+        fullName: ds.name,
+        used: (ds.used_mb / 1024).toFixed(2),
+        free: (ds.free_mb / 1024).toFixed(2),
+        usedMB: ds.used_mb,
+        freeMB: ds.free_mb,
+    }));
+
+    // Export to PNG
+    const handleExport = async () => {
+        if (!dashboardRef.current) return;
+
+        try {
+            const canvas = await html2canvas(dashboardRef.current, {
+                scale: 2,
+                backgroundColor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
+                logging: false,
+            });
+
+            const link = document.createElement('a');
+            link.download = `datastore-dashboard-${new Date().toISOString().split('T')[0]}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            console.error('Export failed:', err);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+                <CircularProgress size={60} />
+            </Box>
+        );
+    }
+
+    if (error) {
+        return (
+            <Alert severity="error">
+                เกิดข้อผิดพลาดในการโหลดข้อมูล กรุณาลองใหม่อีกครั้ง
+            </Alert>
+        );
+    }
+
+    if (datastores.length === 0) {
+        return (
+            <Alert severity="info">
+                ไม่พบ Data Store ที่เลือก กรุณาไปตั้งค่าที่หน้า Settings
+            </Alert>
+        );
+    }
+
+    return (
+        <Box sx={{ position: 'relative' }}>
+            {/* Export & Refresh Actions */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 2 }}>
+                <Tooltip title="Refresh Data">
+                    <IconButton onClick={() => refetch()} color="primary">
+                        <RefreshIcon />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title="Export to PNG">
+                    <IconButton onClick={handleExport} color="primary">
+                        <DownloadIcon />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+
+            {/* Dashboard Content */}
+            <Box ref={dashboardRef} sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+                {/* Header */}
+                <Box sx={{ mb: 4, textAlign: 'center' }}>
+                    <Typography
+                        variant="h3"
+                        sx={{
+                            fontWeight: 800,
+                            background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            mb: 1,
+                        }}
+                    >
+                        📊 Data Store Dashboard
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        ภาพรวมการใช้งาน Data Store แบบ Real-time
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        อัพเดทล่าสุด: {new Date().toLocaleString('th-TH')}
+                    </Typography>
+                </Box>
+
+                {/* Summary Stats */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <EnhancedStatCard
+                            title="จำนวน Data Store"
+                            value={datastores.length}
+                            icon={<StorageIcon />}
+                            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                            delay={0}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <EnhancedStatCard
+                            title="ความจุรวม"
+                            value={formatBytes(totalCapacity)}
+                            icon={<MemoryIcon />}
+                            gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+                            delay={100}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <EnhancedStatCard
+                            title="ใช้ไปแล้ว"
+                            value={formatBytes(totalUsed)}
+                            subtitle={`${avgUsagePercent.toFixed(1)}% ของทั้งหมด`}
+                            icon={<DataUsageIcon />}
+                            gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
+                            delay={200}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <EnhancedStatCard
+                            title="พื้นที่ว่าง"
+                            value={formatBytes(totalFree)}
+                            icon={<CloudStorageIcon />}
+                            gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+                            delay={300}
+                        />
+                    </Grid>
+                </Grid>
+
+                {/* Status Distribution */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                    <Grid item xs={12} sm={4}>
+                        <Card
+                            sx={{
+                                background: 'linear-gradient(135deg, #10b98115 0%, #10b98105 100%)',
+                                border: '1px solid #10b98130',
+                                borderRadius: 3,
+                            }}
+                        >
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <CheckCircleIcon sx={{ fontSize: 48, color: '#10b981', mb: 1 }} />
+                                <Typography variant="h3" fontWeight={800} sx={{ color: '#10b981' }}>
+                                    {healthyCount}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    สถานะปกติ (&lt; 75%)
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                        <Card
+                            sx={{
+                                background: 'linear-gradient(135deg, #f59e0b15 0%, #f59e0b05 100%)',
+                                border: '1px solid #f59e0b30',
+                                borderRadius: 3,
+                            }}
+                        >
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <WarningIcon sx={{ fontSize: 48, color: '#f59e0b', mb: 1 }} />
+                                <Typography variant="h3" fontWeight={800} sx={{ color: '#f59e0b' }}>
+                                    {warningCount}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    ใกล้เต็ม (75-90%)
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                        <Card
+                            sx={{
+                                background: 'linear-gradient(135deg, #ef444415 0%, #ef444405 100%)',
+                                border: '1px solid #ef444430',
+                                borderRadius: 3,
+                            }}
+                        >
+                            <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                <WarningIcon sx={{ fontSize: 48, color: '#ef4444', mb: 1 }} />
+                                <Typography variant="h3" fontWeight={800} sx={{ color: '#ef4444' }}>
+                                    {criticalCount}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    วิกฤต (&ge; 90%)
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+
+                {/* Charts */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                    {/* Pie Chart */}
+                    <Grid item xs={12} md={6}>
+                        <Card sx={{ height: 400 }}>
+                            <CardContent sx={{ p: 3 }}>
+                                <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                                    สัดส่วนการใช้งานรวม
+                                </Typography>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={pieData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {pieData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip
+                                            formatter={(value: any) => formatBytes(value)}
+                                        />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+
+                    {/* Bar Chart */}
+                    <Grid item xs={12} md={6}>
+                        <Card sx={{ height: 400 }}>
+                            <CardContent sx={{ p: 3 }}>
+                                <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                                    การใช้งานแต่ละ Data Store (GB)
+                                </Typography>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={barData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={alpha('#000', 0.1)} />
+                                        <XAxis
+                                            dataKey="name"
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                            interval={0}
+                                            style={{ fontSize: '0.75rem' }}
+                                        />
+                                        <YAxis style={{ fontSize: '0.75rem' }} />
+                                        <RechartsTooltip
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload;
+                                                    return (
+                                                        <Paper sx={{ p: 1.5, border: 1, borderColor: 'divider' }}>
+                                                            <Typography variant="body2" fontWeight={600}>
+                                                                {data.fullName}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: '#ef4444' }}>
+                                                                ใช้: {formatBytes(data.usedMB)}
+                                                            </Typography>
+                                                            <br />
+                                                            <Typography variant="caption" sx={{ color: '#10b981' }}>
+                                                                ว่าง: {formatBytes(data.freeMB)}
+                                                            </Typography>
+                                                        </Paper>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="used" name="ใช้แล้ว" fill="#ef4444" radius={[8, 8, 0, 0]} />
+                                        <Bar dataKey="free" name="ว่าง" fill="#10b981" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
+
+                {/* Enhanced Datastore Cards Section */}
+                <Box sx={{ mb: 4 }}>
+                    <Fade in timeout={800} style={{ transitionDelay: '600ms' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                            <Avatar sx={{ 
+                                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                                width: 48,
+                                height: 48 
+                            }}>
+                                <InsightsIcon />
+                            </Avatar>
+                            <Box>
+                                <Typography variant="h5" fontWeight={700}>
+                                    รายละเอียดแต่ละ Data Store
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    ข้อมูลเชิงลึกและการวิเคราะห์ทุก Data Store
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Fade>
+                    
+                    <Grid container spacing={3}>
+                        {datastores.map((ds, index) => (
+                            <Grid item xs={12} md={6} key={ds.datastore_id}>
+                                <EnhancedDatastoreCard 
+                                    data={ds} 
+                                    colorIndex={index}
+                                    delay={700 + index * 100}
+                                />
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Box>
+
+                {/* Footer */}
+                <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider', textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                        Sangfor SCP VM Management System © 2026 | Data Store Dashboard
+                    </Typography>
+                </Box>
+            </Box>
+        </Box>
+    );
+};
+
+export default DataStoreDashboard;
