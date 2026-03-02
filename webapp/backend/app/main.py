@@ -11,7 +11,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from .utils.limiter import limiter
 
 from .config import get_settings
-from .routers import auth_router, vms_router, dashboard_router, admin_router, sync_router, metrics_router, alarms_router, hosts_router, menu_permissions_router, keycloak_router, admin_vms_router, vm_control_router, vmreport_router
+from .routers import auth_router, vms_router, dashboard_router, admin_router, sync_router, metrics_router, alarms_router, hosts_router, menu_permissions_router, keycloak_router, admin_vms_router, vm_control_router, vmreport_router, vm_report_router
 from .services.sync_service import sync_service
 from .services.mv_refresher import get_refresher
 
@@ -86,6 +86,7 @@ app.include_router(keycloak_router)
 app.include_router(admin_vms_router)
 app.include_router(vm_control_router)
 app.include_router(vmreport_router)
+app.include_router(vm_report_router)
 
 
 @app.get("/health")

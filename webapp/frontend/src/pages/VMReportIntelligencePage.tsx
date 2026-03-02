@@ -48,7 +48,7 @@ import {
 
 // Import Components
 import ExecutiveDashboard from '../components/vmreport/ExecutiveDashboard';
-import VMDetailReport from '../components/vmreport/VMDetailReport';
+import VMIntelligenceReport from '../components/vmreport/VMIntelligenceReport';
 import CapacityPlanning from '../components/vmreport/CapacityPlanning';
 import EfficiencyReport from '../components/vmreport/EfficiencyReport';
 
@@ -250,7 +250,7 @@ export default function VMReportIntelligencePage() {
                 </TabPanel>
 
                 <TabPanel value={activeTab} index={1}>
-                    <VMDetailReport />
+                    <VMIntelligenceReport />
                 </TabPanel>
 
                 <TabPanel value={activeTab} index={2}>

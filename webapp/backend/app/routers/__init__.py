@@ -11,5 +11,5 @@ from .keycloak import router as keycloak_router
 from .admin_vms import router as admin_vms_router
 from .vm_control import router as vm_control_router
 from .vmreport import router as vmreport_router
-
+from .vm_report import router as vm_report_router
 
