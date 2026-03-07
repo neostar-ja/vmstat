@@ -1,0 +1,9 @@
+export { default as Tab0General } from './Tab0General';
+export { default as Tab1Performance } from './Tab1Performance';
+export { default as Tab2CpuMemory } from './Tab2CpuMemory';
+export { default as Tab3Storage } from './Tab3Storage';
+export { default as Tab4Network } from './Tab4Network';
+export { default as Tab5BackupDR } from './Tab5BackupDR';
+export { default as Tab6Alarm } from './Tab6Alarm';
+export { default as Tab7Report } from './Tab7Report';
+export { default as Tab8RawData } from './Tab8RawData';
