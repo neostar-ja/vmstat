@@ -83,9 +83,9 @@ import {
     Tab4Network,
     Tab5BackupDR,
     Tab6Alarm,
-    Tab7Report,
     Tab8RawData,
 } from './vmdetail/tabs';
+import VMDetailPrintReport from './vmdetail/VMDetailPrintReport';
 import { formatUptime, formatBytes, normalizePercent } from './vmdetail/helpers';
 
 // ช่วงเวลา
@@ -460,6 +460,7 @@ export default function VMDetailPage() {
     }
 
     return (
+        <>
         <Box
             className="animate-fade-in"
             sx={{
@@ -1657,15 +1658,7 @@ export default function VMDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* Print-only Report Section – hidden on screen, visible only during window.print() */}
-            {showReport && (
-                <Box
-                    id="vm-report-print-section"
-                    sx={{ display: 'none', '@media print': { display: 'block' } }}
-                >
-                    <Tab7Report vm={vm} vmUuid={vmUuid!} theme={theme} metricsLoading={metricsLoading} realtimeLoading={realtimeLoading} disksLoading={disksLoading} networksLoading={networksLoading} alarmsLoading={alarmsLoading} chartData={chartData} realtime={realtime} disks={disks} networks={networks} alarms={alarms} platformAlerts={platformAlerts} currentCpu={currentCpu} currentMemory={currentMemory} currentStorage={currentStorage} storageGrowth={storageGrowth} timeRange={timeRange} actualTimeRange={actualTimeRange} user={user} customStartDate={customStartDate} customEndDate={customEndDate} />
-                </Box>
-            )}
+            {/* Print-Only Report — moved outside this Box so .animate-fade-in CSS hiding doesn't affect it */}
 
             {/* Tab 7: Raw Data - renders outside Card */}
             {activeTab === 7 && (
@@ -1713,5 +1706,26 @@ export default function VMDetailPage() {
                 </DialogActions>
             </Dialog>
         </Box >
+
+        {/* ─── Print-Only Report ───
+             Rendered OUTSIDE the animate-fade-in Box so that
+             .animate-fade-in { display:none } in @media print
+             does NOT cascade down and hide it.
+             The vm-print-report div is 'hidden' on screen and
+             'display:block' only during window.print() via Tailwind print:block.
+        ─── */}
+        {showReport && (
+            <VMDetailPrintReport
+                vm={vm} vmUuid={vmUuid!} theme={theme}
+                metricsLoading={metricsLoading} realtimeLoading={realtimeLoading}
+                disksLoading={disksLoading} networksLoading={networksLoading} alarmsLoading={alarmsLoading}
+                chartData={chartData} realtime={realtime} disks={disks} networks={networks}
+                alarms={alarms} platformAlerts={platformAlerts}
+                currentCpu={currentCpu} currentMemory={currentMemory} currentStorage={currentStorage}
+                storageGrowth={storageGrowth} timeRange={timeRange} actualTimeRange={actualTimeRange}
+                user={user} customStartDate={customStartDate} customEndDate={customEndDate}
+            />
+        )}
+        </>
     );
 }
