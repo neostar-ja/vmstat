@@ -330,7 +330,11 @@ export default function VMDetailPrintReport(props: Tab7Props) {
 
                     /* Page break helpers */
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
-                    .page-break-before { break-before: page !important; page-break-before: always !important; }
+                    .page-break-before {
+                        break-before: page !important;
+                        page-break-before: always !important;
+                        padding-top: 40px !important; /* space for position:fixed header on new pages */
+                    }
 
                     /* Recharts */
                     .recharts-wrapper, .recharts-surface { background: white !important; }
