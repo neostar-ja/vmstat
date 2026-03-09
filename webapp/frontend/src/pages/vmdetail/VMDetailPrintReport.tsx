@@ -1,15 +1,15 @@
 /**
- * VMDetailPrintReport — Tailwind CSS Print-Only Report Component
+ * VMDetailPrintReport — Professional A4 Print Report (v2)
  *
- * Rendering strategy:
- * • On screen  : className="hidden" → display:none
- * • On print   : print:block overrides hidden via @media print
+ * Structure: 3 logical pages separated by explicit CSS page breaks.
+ *   Page 1 : Cover header + Section 1 (General Info) + Section 2 (Resources)
+ *   Page 2 : Section 3 (Performance Charts)
+ *   Page 3 : Section 4 (Health & Backup) + Authorization Signatures
  *
- * Chart strategy:
- * • Fixed pixel widths (CW/CH) instead of <ResponsiveContainer>.
- *   ResizeObserver returns 0 for display:none parents, which makes
- *   ResponsiveContainer render 0×0 SVGs that are invisible when printed.
- *   Fixed dimensions render correctly regardless of parent visibility.
+ * Each page has its own running header (p2/p3) and a footer with page number.
+ *
+ * Chart strategy: fixed pixel dimensions (CW × CH) — no ResponsiveContainer.
+ * ResizeObserver returns 0 for display:none parents so fixed dims are required.
  */
 
 import {
@@ -178,14 +178,91 @@ function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label,
 // ─── Section header ───────────────────────────────────────────
 function SecHead({ num, title, sub, bgColor = '#1e293b' }: { num: string; title: string; sub?: string; bgColor?: string }) {
     return (
-        <div className="flex items-center gap-3 px-3 py-2" style={{ backgroundColor: bgColor }}>
-            <div className="w-6 h-6 rounded-full border-2 border-white border-opacity-40 bg-white bg-opacity-15
-                            flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-[10px] font-black leading-none">{num}</span>
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '8px 14px',
+            background: `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}dd 100%)`,
+            borderRadius: '4px 4px 0 0',
+            borderBottom: '2px solid rgba(255,255,255,0.15)',
+        }}>
+            <div style={{
+                width: 26, height: 26, borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.45)',
+                background: 'rgba(255,255,255,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+                <span style={{ color: 'white', fontSize: 10, fontWeight: 900, lineHeight: 1 }}>{num}</span>
             </div>
             <div>
-                <p className="text-white text-xs font-black leading-tight">{title}</p>
-                {sub && <p className="text-white text-opacity-75 text-[9px] leading-tight" style={{ color: 'rgba(255,255,255,0.75)' }}>{sub}</p>}
+                <p style={{ color: 'white', fontSize: 11, fontWeight: 800, margin: 0, lineHeight: 1.25, letterSpacing: '0.01em' }}>{title}</p>
+                {sub && <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 9, margin: 0, lineHeight: 1.3, marginTop: 1 }}>{sub}</p>}
+            </div>
+        </div>
+    );
+}
+
+// ─── Running header (page 2+) ─────────────────────────────────
+function RunningHeader({ vm, printDate, printTime }: { vm: any; printDate: string; printTime: string }) {
+    return (
+        <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            borderBottom: '2px solid #1a3560', marginBottom: 14, paddingBottom: 6,
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src="/vmstat/wuh_logo.png" alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+                <div>
+                    <span style={{ fontSize: 8, fontWeight: 800, color: '#1a3560', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                        VM Specification &amp; Status Report
+                    </span>
+                    <span style={{ fontSize: 8, color: '#64748b', marginLeft: 8 }}>· {vm?.name || '—'}</span>
+                </div>
+            </div>
+            <span style={{ fontSize: 8, color: '#94a3b8', fontStyle: 'italic' }}>
+                โรงพยาบาลศูนย์การแพทย์ มหาวิทยาลัยวลัยลักษณ์ · {printDate} {printTime} น.
+            </span>
+        </div>
+    );
+}
+
+// ─── Page footer with page number ────────────────────────────
+function PageFooter({ pageNum, totalPages, printDate, printTime, user }: {
+    pageNum: number; totalPages: number; vm?: any; printDate: string; printTime: string; user: any;
+}) {
+    const userName = user?.first_name
+        ? `${user.first_name} ${user.last_name || ''}`.trim()
+        : (user?.username || 'Administrator');
+    return (
+        <div style={{ marginTop: 18, paddingTop: 6, borderTop: '1px solid #cbd5e1' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {/* Left */}
+                <div>
+                    <p style={{ fontSize: 8, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>
+                        CONFIDENTIAL · For Internal Use Only · WUH VMStat
+                    </p>
+                    <p style={{ fontSize: 8, color: '#94a3b8', margin: 0 }}>
+                        พิมพ์เมื่อ: {printDate} เวลา {printTime} น. · โดย: {userName}
+                    </p>
+                </div>
+                {/* Page number badge */}
+                <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 4,
+                    border: '1.5px solid #1a3560', borderRadius: 4,
+                    padding: '3px 12px', backgroundColor: '#f8fafc',
+                }}>
+                    <span style={{ fontSize: 8, color: '#64748b', letterSpacing: '0.08em' }}>หน้า</span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: '#1a3560', lineHeight: 1 }}>{pageNum}</span>
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>/</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{totalPages}</span>
+                </div>
+                {/* Right */}
+                <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 8, color: '#94a3b8', margin: 0 }}>
+                        เอกสารอ้างอิง: WUH-IT-VMRPT-{new Date().getFullYear()}
+                    </p>
+                    <p style={{ fontSize: 8, color: '#94a3b8', margin: 0 }}>
+                        Sangfor SCP VMStat © {new Date().getFullYear()}
+                    </p>
+                </div>
             </div>
         </div>
     );
@@ -203,6 +280,9 @@ export default function VMDetailPrintReport(props: Tab7Props) {
     const printTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const totalAlarms = alarms.length + platformAlerts.length;
     const firstAlarm = alarms[0] || platformAlerts[0];
+    const TOTAL_PAGES = 3;
+
+    const { label: trLabel, range: trRange } = getTimeRangeData(timeRange, customStartDate, customEndDate);
 
     // Recommendations
     const recs: { icon: string; color: string; text: string }[] = [];
@@ -214,6 +294,8 @@ export default function VMDetailPrintReport(props: Tab7Props) {
     if (storageGrowth.perDay > 500 * 1024 * 1024) recs.push({ icon: 'ℹ', color: '#2563eb', text: `Storage เพิ่มขึ้น ~${formatBytes(storageGrowth.perDay)}/วัน — ควรวางแผนขยาย Storage` });
     if (recs.length === 0) recs.push({ icon: '✓', color: '#16a34a', text: 'ระบบทำงานปกติ ทรัพยากรทุกรายการอยู่ในระดับที่ยอมรับได้' });
 
+    const footerProps = { vm, printDate, printTime, user, totalPages: TOTAL_PAGES };
+
     return (
         <>
             {/* ── Global print CSS ── */}
@@ -224,350 +306,283 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     body { background: white !important; }
                     html, body, #root { height: auto !important; overflow: visible !important; }
 
-                    /* Hide all MUI layout chrome */
                     nav, aside, header, footer,
                     .MuiDrawer-root, .MuiAppBar-root,
                     .MuiTabs-root, .MuiTab-root { display: none !important; }
 
-                    /* Hide the VM detail UI (hero, tabs, cards) */
                     .animate-fade-in { display: none !important; }
-
-                    /* Ensure print report is visible */
                     .vm-print-report { display: block !important; }
 
-                    /* Recharts white backgrounds */
                     .recharts-wrapper, .recharts-surface { background: white !important; }
                     .recharts-cartesian-grid line { stroke: #e5e7eb !important; }
 
-                    /* Page break utilities */
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+                    .page-break-before { break-before: page !important; page-break-before: always !important; }
                 }
             `}</style>
 
-            {/* ────────────────────────────────────────────────────────
-                REPORT ROOT — hidden on screen, block on print
-                ──────────────────────────────────────────────────────── */}
+            {/* ── REPORT ROOT ── */}
             <div className="vm-print-report hidden print:block print:bg-white print:text-black font-sans text-sm w-full">
 
-                {/* ═══════════════ HEADER ═══════════════ */}
-                <div className="mb-6 relative border-[1.5px] border-slate-300 rounded overflow-hidden">
-                    {/* Top accent gradient bar */}
-                    <div className="h-1.5 w-full bg-slate-800" style={{ background: 'linear-gradient(90deg, #1a3560 0%, #2563eb 60%, #38bdf8 100%)' }} />
+                {/* ═══════════════════════════════════════════════
+                    PAGE 1: Cover Header + General Info + Resources
+                    ═══════════════════════════════════════════════ */}
+
+                {/* ── HEADER ── */}
+                <div className="mb-5 relative border-[1.5px] border-slate-300 rounded overflow-hidden">
+                    {/* Top accent bar */}
+                    <div style={{ height: 6, background: 'linear-gradient(90deg, #0f172a 0%, #1a3560 35%, #2563eb 70%, #38bdf8 100%)' }} />
                     <div className="px-5 py-4 bg-white">
                         <div className="flex justify-between items-start">
-                            {/* Left: logo + titles */}
+                            {/* Logo + titles */}
                             <div className="flex gap-4">
-                                <div className="flex-shrink-0 flex items-center justify-center p-1.5 border border-slate-200 rounded bg-slate-50" style={{ width: 68, height: 68 }}>
-                                    <img src="/vmstat/wuh_logo.png" alt="Logo"
-                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                <div style={{
+                                    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 72, height: 72, border: '1.5px solid #e2e8f0', borderRadius: 6, backgroundColor: '#f8fafc', padding: 6,
+                                }}>
+                                    <img src="/vmstat/wuh_logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                 </div>
-                                <div className="flex flex-col justify-center">
-                                    <p className="text-[10px] font-bold tracking-widest text-[#1a3560] mb-0.5">
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', color: '#1a3560', margin: '0 0 2px', textTransform: 'uppercase' }}>
                                         โรงพยาบาลศูนย์การแพทย์ มหาวิทยาลัยวลัยลักษณ์
                                     </p>
-                                    <h1 className="text-[22px] font-black text-[#0f172a] leading-tight tracking-tight uppercase">
+                                    <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0, lineHeight: 1.15, letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
                                         VM Specification &amp; Status Report
                                     </h1>
-                                    <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                                        รายงานข้อมูลจำเพาะและสถานะเครื่องเสมือน (VM Performance Assessment)
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#475569', margin: '3px 0 0' }}>
+                                        รายงานข้อมูลจำเพาะและสถานะเครื่องเสมือน · VM Performance Assessment
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Right: Info Box */}
-                            <div className="flex flex-col items-end gap-2 text-right">
-                                {/* Document Ref */}
-                                <div className="px-2.5 py-1.5 border border-slate-200 bg-slate-50 rounded shadow-sm">
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Document Ref.</p>
-                                    <p className="text-[11px] font-mono font-bold text-slate-700">WUH-IT-VMRPT-{new Date().getFullYear()}</p>
+                            {/* Right info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: 4, padding: '6px 12px', backgroundColor: '#f8fafc' }}>
+                                    <p style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>Document Ref.</p>
+                                    <p style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                                        WUH-IT-VMRPT-{new Date().getFullYear()}
+                                    </p>
                                 </div>
-                                {/* Classification stamp */}
-                                <div className="border-[2px] border-[#1a3560] px-3 py-1 bg-white shadow-sm" style={{ transform: 'rotate(-2deg)' }}>
-                                    <p className="text-[10px] font-black tracking-[0.2em] text-[#1a3560] uppercase m-0 leading-tight">CONFIDENTIAL</p>
-                                    <p className="text-[8px] font-bold text-slate-500 tracking-[0.1em] text-center m-0">Internal Use Only</p>
+                                <div style={{ border: '2.5px solid #1a3560', padding: '4px 14px', transform: 'rotate(-2deg)', backgroundColor: 'white' }}>
+                                    <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.25em', color: '#1a3560', textTransform: 'uppercase', margin: 0, lineHeight: 1.2 }}>CONFIDENTIAL</p>
+                                    <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', color: '#64748b', textAlign: 'center', margin: 0 }}>Internal Use Only</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* VM identity row */}
                         {vm && (
-                            <div className="mt-5 grid grid-cols-4 border border-slate-200 rounded-md overflow-hidden bg-slate-50 shadow-inner">
-                                <div className="p-2.5 border-r border-slate-200">
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">VM Name</p>
-                                    <p className="text-sm font-black text-[#0f172a] truncate">{vm.name}</p>
-                                </div>
-                                <div className="p-2.5 border-r border-slate-200">
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">UUID</p>
-                                    <p className="text-[10px] font-mono font-bold text-slate-700 truncate">{vm.vm_uuid}</p>
-                                </div>
-                                <div className="p-2.5 border-r border-slate-200 flex flex-col justify-center">
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Report Period</p>
-                                    <p className="text-xs font-black text-[#1e293b] leading-tight">{getTimeRangeData(timeRange, customStartDate, customEndDate).label}</p>
-                                    <p className="text-[9px] font-mono font-bold text-slate-500 tracking-tight leading-tight">{getTimeRangeData(timeRange, customStartDate, customEndDate).range}</p>
-                                </div>
-                                <div className="p-2.5 bg-[#f8fafc]">
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-1">Power Status</p>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${vm.power_state === 'on' ? 'bg-green-500' : 'bg-red-500'} shadow-sm`} />
-                                        <p className={`text-xs font-black uppercase tracking-wide ${vm.power_state === 'on' ? 'text-green-700' : 'text-red-700'}`}>
-                                            {vm.power_state === 'on' ? 'RUNNING' : 'STOPPED'}
-                                        </p>
+                            <div style={{
+                                marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+                                border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden', backgroundColor: '#f8fafc',
+                            }}>
+                                {([
+                                    { label: 'VM Name', value: vm.name },
+                                    { label: 'UUID', value: vm.vm_uuid, mono: true },
+                                    { label: 'Report Period', value: trLabel, sub: trRange },
+                                    {
+                                        label: 'Power Status', value: vm.power_state === 'on' ? 'RUNNING' : 'STOPPED',
+                                        badge: true, on: vm.power_state === 'on',
+                                    },
+                                ] as any[]).map((item, i) => (
+                                    <div key={i} style={{
+                                        padding: '10px 12px',
+                                        borderRight: i < 3 ? '1px solid #e2e8f0' : 'none',
+                                    }}>
+                                        <p style={{ fontSize: 8, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 4px' }}>{item.label}</p>
+                                        {item.badge ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                                <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.on ? '#16a34a' : '#dc2626' }} />
+                                                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.05em', color: item.on ? '#15803d' : '#b91c1c' }}>{item.value}</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <p style={{
+                                                    fontSize: item.mono ? 10 : 13, fontWeight: 900,
+                                                    fontFamily: item.mono ? 'monospace' : undefined,
+                                                    color: '#0f172a', margin: 0, wordBreak: 'break-all', lineHeight: 1.2,
+                                                }}>{item.value}</p>
+                                                {item.sub && <p style={{ fontSize: 9, fontFamily: 'monospace', color: '#64748b', margin: '2px 0 0', lineHeight: 1.3 }}>{item.sub}</p>}
+                                            </>
+                                        )}
                                     </div>
-                                </div>
+                                ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* ═══════════════ BODY SECTIONS ═══════════════ */}
-                <div className="space-y-5" >
+                {/* ── SECTION 1: General Information ── */}
+                <section className="break-inside-avoid mb-4">
+                    <SecHead num="1" title="ข้อมูลทั่วไป (General Information)" bgColor="#1a3560" />
+                    <div style={{ border: '1.5px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
+                        {([
+                            ['VM Name', vm?.name, 'Power State', vm?.power_state === 'on' ? '🟢 Powered On (Running)' : '🔴 Powered Off (Stopped)'],
+                            ['Guest OS', vm?.os_name || vm?.os_type || 'Unknown', 'IP Address', vm?.ip_address || networks[0]?.ip_address || 'ไม่ระบุ'],
+                            ['Cluster / Group', vm?.group_name_path || vm?.group_name || vm?.project_name || 'ไม่ระบุ', 'Host', vm?.host_name || 'ไม่ระบุ'],
+                            ['Datastore', vm?.storage_name || 'ไม่ระบุ', 'Uptime', formatUptime(realtime?.uptime || vm?.uptime_seconds, vm?.power_state)],
+                            ['CPU Spec', `${vm?.cpu_cores || '-'} Cores${vm?.cpu_sockets ? ` / ${vm.cpu_sockets} Sockets` : ''}${vm?.cpu_total_mhz ? ` · ${formatMhz(vm.cpu_total_mhz)}` : ''}`,
+                                'RAM / Storage', `${formatBytes(vm?.memory_total_mb)} RAM · ${formatBytes(vm?.storage_total_mb)} Storage`],
+                        ] as [string, string | null | undefined, string, string][]).map(([k1, v1, k2, v2], i) => (
+                            <div key={i} style={{
+                                display: 'grid', gridTemplateColumns: '1fr 1fr',
+                                borderBottom: i < 4 ? '1px solid #f1f5f9' : 'none',
+                                backgroundColor: i % 2 === 1 ? '#fafafa' : 'white',
+                            }}>
+                                <div style={{ display: 'flex', borderRight: '1px solid #f1f5f9' }}>
+                                    <span style={{ width: 130, flexShrink: 0, backgroundColor: '#f1f5f9', padding: '7px 12px', fontSize: 9, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{k1}</span>
+                                    <span style={{ padding: '7px 12px', fontSize: 11, fontWeight: 700, color: '#0f172a', wordBreak: 'break-all' }}>{v1 ?? '—'}</span>
+                                </div>
+                                <div style={{ display: 'flex' }}>
+                                    <span style={{ width: 110, flexShrink: 0, backgroundColor: '#f1f5f9', padding: '7px 12px', fontSize: 9, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{k2}</span>
+                                    <span style={{ padding: '7px 12px', fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{v2 ?? '—'}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
 
-                    {/* ──────────── SECTION 1: General Information ──────────── */}
-                    < section className="break-inside-avoid" >
-                        <SecHead num="1" title="ข้อมูลทั่วไป (General Information)" bgColor="#1a3560" />
-                        <div className="border border-slate-300 border-t-0">
+                {/* ── SECTION 2: Resource Specifications ── */}
+                <section className="break-inside-avoid mb-4">
+                    <SecHead num="2" title="ข้อมูลทรัพยากร (Resource Specifications)" bgColor="#155e75" />
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, border: '1.5px solid #e2e8f0', borderTop: 'none' }}>
+                        <thead>
+                            <tr style={{ backgroundColor: '#eef6fb' }}>
+                                <th style={{ border: '1px solid #e2e8f0', padding: '7px 12px', textAlign: 'left', fontWeight: 800, color: '#0369a1', width: 120, fontSize: 10 }}>ประเภท (Resource)</th>
+                                <th style={{ border: '1px solid #e2e8f0', padding: '7px 12px', textAlign: 'left', fontWeight: 800, color: '#0369a1', fontSize: 10 }}>ที่จัดสรรไว้ (Allocated)</th>
+                                <th style={{ border: '1px solid #e2e8f0', padding: '7px 12px', textAlign: 'left', fontWeight: 800, color: '#0369a1', fontSize: 10 }}>การใช้งานปัจจุบัน (Current Usage)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             {([
-                                ['VM Name', vm?.name, 'Power State',
-                                    vm?.power_state === 'on' ? '🟢 Powered On (Running)' : '🔴 Powered Off (Stopped)'],
-                                ['Guest OS', vm?.os_name || vm?.os_type || 'Unknown', 'IP Address',
-                                    vm?.ip_address || networks[0]?.ip_address || 'ไม่ระบุ'],
-                                ['Cluster / Group', vm?.group_name_path || vm?.group_name || vm?.project_name || 'ไม่ระบุ',
-                                    'Host', vm?.host_name || 'ไม่ระบุ'],
-                                ['Datastore', vm?.storage_name || 'ไม่ระบุ', 'Uptime',
-                                    formatUptime(realtime?.uptime || vm?.uptime_seconds, vm?.power_state)],
-                                ['CPU Spec', `${vm?.cpu_cores || '-'} Cores${vm?.cpu_sockets ? ` / ${vm.cpu_sockets} Sockets` : ''}${vm?.cpu_total_mhz ? ` · ${formatMhz(vm.cpu_total_mhz)}` : ''}`,
-                                    'RAM / Storage', `${formatBytes(vm?.memory_total_mb)} RAM · ${formatBytes(vm?.storage_total_mb)} Storage`],
-                            ] as [string, string | null | undefined, string, string][]).map(([k1, v1, k2, v2], i) => (
-                                <div key={i} className="grid grid-cols-2 border-b border-slate-200 last:border-b-0"
-                                    style={{ backgroundColor: i % 2 === 1 ? '#fafafa' : 'white' }}>
-                                    <div className="flex border-r border-slate-200">
-                                        <span className="w-36 flex-shrink-0 bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600 border-r border-slate-200">
-                                            {k1}
-                                        </span>
-                                        <span className="px-3 py-1.5 text-xs font-bold text-slate-900 break-all">
-                                            {v1 ?? '—'}
-                                        </span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="w-28 flex-shrink-0 bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600 border-r border-slate-200">
-                                            {k2}
-                                        </span>
-                                        <span className="px-3 py-1.5 text-xs font-bold text-slate-900">
-                                            {v2 ?? '—'}
-                                        </span>
-                                    </div>
-                                </div>
+                                {
+                                    label: 'vCPU', alloc: `${vm?.cpu_cores || '-'} Cores${vm?.cpu_sockets ? ` (${vm.cpu_sockets} Sockets)` : ''}${vm?.cpu_total_mhz ? ` · ${formatMhz(vm.cpu_total_mhz)}` : ''}`,
+                                    usage: `${currentCpu.toFixed(1)}%${vm?.cpu_used_mhz ? ` · ${formatMhz(vm.cpu_used_mhz)} used` : ''}`, pct: currentCpu,
+                                },
+                                {
+                                    label: 'Memory (RAM)', alloc: formatBytes(vm?.memory_total_mb),
+                                    usage: `${formatBytes(vm?.memory_used_mb)} (${currentMemory.toFixed(1)}%)`, pct: currentMemory,
+                                },
+                                {
+                                    label: 'Storage (Disk)', alloc: `${formatBytes(vm?.storage_total_mb)} (Provisioned)`,
+                                    usage: `${formatBytes(vm?.storage_used_mb)} (${currentStorage.toFixed(1)}%)${storageGrowth.perDay > 0 ? ` · +${formatBytes(storageGrowth.perDay)}/วัน` : ''}`,
+                                    pct: currentStorage,
+                                },
+                            ]).map((row, i) => (
+                                <tr key={i} style={{ backgroundColor: i % 2 === 1 ? '#fafafa' : 'white' }}>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px', fontWeight: 700, backgroundColor: '#f8fafc', fontSize: 10 }}>{row.label}</td>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px' }}>{row.alloc}</td>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px', fontWeight: 800, color: riskColor(row.pct, i === 2 ? 85 : 80, i === 2 ? 70 : 60) }}>
+                                        {row.usage}
+                                    </td>
+                                </tr>
                             ))}
-                        </div>
-                    </section >
-
-                    {/* ──────────── SECTION 2: Resource Specifications ──────────── */}
-                    < section className="break-inside-avoid" >
-                        <SecHead num="2" title="ข้อมูลทรัพยากร (Resource Specifications)" bgColor="#155e75" />
-                        <table className="w-full border-collapse text-xs border border-slate-300 border-t-0">
-                            <thead>
-                                <tr style={{ backgroundColor: '#eef2f9' }}>
-                                    <th className="border border-slate-300 px-3 py-2 text-left font-bold text-slate-700 w-36">
-                                        ประเภท (Resource)
-                                    </th>
-                                    <th className="border border-slate-300 px-3 py-2 text-left font-bold text-slate-700">
-                                        ที่จัดสรรไว้ (Allocated)
-                                    </th>
-                                    <th className="border border-slate-300 px-3 py-2 text-left font-bold text-slate-700">
-                                        การใช้งานปัจจุบัน (Current Usage)
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-semibold bg-slate-50">vCPU</td>
-                                    <td className="border border-slate-200 px-3 py-1.5">
-                                        {vm?.cpu_cores || '-'} Cores
-                                        {vm?.cpu_sockets ? ` (${vm.cpu_sockets} Sockets)` : ''}
-                                        {vm?.cpu_total_mhz ? ` · ${formatMhz(vm.cpu_total_mhz)}` : ''}
-                                    </td>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-bold"
-                                        style={{ color: riskColor(currentCpu) }}>
-                                        {currentCpu.toFixed(1)}%
-                                        {vm?.cpu_used_mhz ? ` · ${formatMhz(vm.cpu_used_mhz)} used` : ''}
-                                    </td>
-                                </tr>
+                            {networks.length > 0 && (
                                 <tr style={{ backgroundColor: '#fafafa' }}>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-semibold bg-slate-50">Memory (RAM)</td>
-                                    <td className="border border-slate-200 px-3 py-1.5">{formatBytes(vm?.memory_total_mb)}</td>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-bold"
-                                        style={{ color: riskColor(currentMemory) }}>
-                                        {formatBytes(vm?.memory_used_mb)} ({currentMemory.toFixed(1)}%)
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px', fontWeight: 700, backgroundColor: '#f8fafc', fontSize: 10 }}>Network (NIC)</td>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px' }}>{networks.length} Interface{networks.length > 1 ? 's' : ''}</td>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px' }}>
+                                        {networks.slice(0, 4).map(n => n.ip_address).filter(Boolean).join(', ') || 'ไม่ระบุ'}
+                                        {networks.length > 4 ? ` + ${networks.length - 4} more` : ''}
                                     </td>
                                 </tr>
+                            )}
+                            {disks.length > 0 && (
                                 <tr>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-semibold bg-slate-50">Storage (Disk)</td>
-                                    <td className="border border-slate-200 px-3 py-1.5">
-                                        {formatBytes(vm?.storage_total_mb)} (Provisioned)
-                                    </td>
-                                    <td className="border border-slate-200 px-3 py-1.5 font-bold"
-                                        style={{ color: riskColor(currentStorage, 85, 70) }}>
-                                        {formatBytes(vm?.storage_used_mb)} ({currentStorage.toFixed(1)}%)
-                                        {storageGrowth.perDay > 0 ? ` · +${formatBytes(storageGrowth.perDay)}/วัน` : ''}
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px', fontWeight: 700, backgroundColor: '#f8fafc', fontSize: 10 }}>Virtual Disk(s)</td>
+                                    <td style={{ border: '1px solid #f1f5f9', padding: '7px 12px' }} colSpan={2}>
+                                        {disks.map((d, i) => (
+                                            <span key={i} style={{ marginRight: 16, fontSize: 10 }}>
+                                                {d.storage_file?.split('/').pop() ?? `disk-${i + 1}`}: <strong>{formatBytes(d.size_mb)}</strong>
+                                            </span>
+                                        ))}
                                     </td>
                                 </tr>
-                                {networks.length > 0 && (
-                                    <tr style={{ backgroundColor: '#fafafa' }}>
-                                        <td className="border border-slate-200 px-3 py-1.5 font-semibold bg-slate-50">Network (NIC)</td>
-                                        <td className="border border-slate-200 px-3 py-1.5">
-                                            {networks.length} Interface{networks.length > 1 ? 's' : ''}
-                                        </td>
-                                        <td className="border border-slate-200 px-3 py-1.5">
-                                            {networks.slice(0, 4).map(n => n.ip_address).filter(Boolean).join(', ') || 'ไม่ระบุ'}
-                                            {networks.length > 4 ? ` + ${networks.length - 4} more` : ''}
-                                        </td>
-                                    </tr>
-                                )}
-                                {disks.length > 0 && (
-                                    <tr>
-                                        <td className="border border-slate-200 px-3 py-1.5 font-semibold bg-slate-50">Virtual Disk(s)</td>
-                                        <td className="border border-slate-200 px-3 py-1.5 col-span-2" colSpan={2}>
-                                            {disks.map((d, i) => (
-                                                <span key={i} className="mr-4 text-[10px]">
-                                                    {d.storage_file?.split('/').pop() ?? `disk-${i + 1}`}: <strong>{formatBytes(d.size_mb)}</strong>
-                                                </span>
-                                            ))}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </section >
+                            )}
+                        </tbody>
+                    </table>
+                </section>
 
-                    {/* ──────────── SECTION 3: Performance Metrics (6 Charts) ──────────── */}
-                    < section >
-                        <SecHead
-                            num="3"
-                            title="ประสิทธิภาพการทำงาน (Performance Metrics)"
-                            sub={chartData.length > 0
-                                ? `${getTimeRangeData(timeRange, customStartDate, customEndDate).label} (${getTimeRangeData(timeRange, customStartDate, customEndDate).range}) · ${chartData.length} Data Points`
-                                : 'ไม่มีข้อมูลในช่วงเวลาที่เลือก'}
-                            bgColor="#4c1d95"
-                        />
-                        {
-                            chartData.length > 0 ? (
-                                <div className="flex flex-col gap-4 mt-2">
-                                    <ChartCard
-                                        title="📊 1. CPU Usage (%)"
-                                        unit="%"
-                                        dataKey="cpu"
-                                        data={chartData}
-                                        color="#3b82f6"
-                                        label="CPU %"
-                                        kind="area"
-                                        domainMax={100}
-                                    />
-                                    <ChartCard
-                                        title="📊 2. Memory Usage (%)"
-                                        unit="%"
-                                        dataKey="memory"
-                                        data={chartData}
-                                        color="#8b5cf6"
-                                        label="Memory %"
-                                        kind="area"
-                                        domainMax={100}
-                                    />
-                                    <ChartCard
-                                        title="📈 3. Disk IOPS (Read / Write)"
-                                        unit=" IOPS"
-                                        dataKey="diskRead"
-                                        dataKey2="diskWrite"
-                                        data={chartData}
-                                        color="#0ea5e9"
-                                        color2="#ec4899"
-                                        label="Read"
-                                        label2="Write"
-                                        kind="line"
-                                    />
-                                    <ChartCard
-                                        title="📈 4. Storage Trend (GB Used)"
-                                        unit=" GB"
-                                        dataKey="storageUsedGB"
-                                        data={chartData}
-                                        color="#6366f1"
-                                        label="Used GB"
-                                        kind="area"
-                                    />
-                                    <ChartCard
-                                        title="🌐 5. Network Traffic (MB/s)"
-                                        unit=" MB/s"
-                                        dataKey="networkIn"
-                                        dataKey2="networkOut"
-                                        data={chartData}
-                                        color="#10b981"
-                                        color2="#f59e0b"
-                                        label="RX (In)"
-                                        label2="TX (Out)"
-                                        kind="line"
-                                    />
-                                    <ChartCard
-                                        title="⏱️ 6. Storage Usage (%)"
-                                        unit="%"
-                                        dataKey="storagePercent"
-                                        data={chartData}
-                                        color="#14b8a6"
-                                        label="Storage %"
-                                        kind="area"
-                                        domainMax={100}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="mt-2 border border-slate-200 rounded p-6 text-center text-slate-400 text-xs">
-                                    ไม่มีข้อมูล Metrics — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
-                                </div>
-                            )
-                        }
-                    </section >
+                {/* PAGE 1 FOOTER */}
+                <PageFooter pageNum={1} {...footerProps} />
 
-                    {/* ──────────── SECTION 4: Health & Backup ──────────── */}
-                    < section className="break-inside-avoid" >
+
+                {/* ═══════════════════════════════════════════════
+                    PAGE 2: Performance Charts
+                    ═══════════════════════════════════════════════ */}
+                <section className="page-break-before">
+                    <RunningHeader vm={vm} printDate={printDate} printTime={printTime} />
+                    <SecHead
+                        num="3"
+                        title="ประสิทธิภาพการทำงาน (Performance Metrics)"
+                        sub={chartData.length > 0
+                            ? `${trLabel} (${trRange}) · ${chartData.length} Data Points`
+                            : 'ไม่มีข้อมูลในช่วงเวลาที่เลือก'}
+                        bgColor="#4c1d95"
+                    />
+                    {chartData.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
+                            <ChartCard title="📊 1. CPU Usage (%)" unit="%" dataKey="cpu" data={chartData} color="#3b82f6" label="CPU %" kind="area" domainMax={100} />
+                            <ChartCard title="📊 2. Memory Usage (%)" unit="%" dataKey="memory" data={chartData} color="#8b5cf6" label="Memory %" kind="area" domainMax={100} />
+                            <ChartCard title="📈 3. Disk IOPS (Read / Write)" unit=" IOPS" dataKey="diskRead" dataKey2="diskWrite" data={chartData} color="#0ea5e9" color2="#ec4899" label="Read" label2="Write" kind="line" />
+                            <ChartCard title="📈 4. Storage Trend (GB Used)" unit=" GB" dataKey="storageUsedGB" data={chartData} color="#6366f1" label="Used GB" kind="area" />
+                            <ChartCard title="🌐 5. Network Traffic (MB/s)" unit=" MB/s" dataKey="networkIn" dataKey2="networkOut" data={chartData} color="#10b981" color2="#f59e0b" label="RX (In)" label2="TX (Out)" kind="line" />
+                            <ChartCard title="⏱️ 6. Storage Usage (%)" unit="%" dataKey="storagePercent" data={chartData} color="#14b8a6" label="Storage %" kind="area" domainMax={100} />
+                        </div>
+                    ) : (
+                        <div style={{ marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 4, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>
+                            ไม่มีข้อมูล Metrics — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
+                        </div>
+                    )}
+                </section>
+
+                {/* PAGE 2 FOOTER */}
+                <PageFooter pageNum={2} {...footerProps} />
+
+
+                {/* ═══════════════════════════════════════════════
+                    PAGE 3: Health & Backup + Authorization Signatures
+                    ═══════════════════════════════════════════════ */}
+                <div className="page-break-before">
+                    <RunningHeader vm={vm} printDate={printDate} printTime={printTime} />
+
+                    {/* ── SECTION 4: Health & Backup ── */}
+                    <section className="break-inside-avoid mb-5">
                         <SecHead num="4" title="สถานะภาพรวม (Health & Backup Status)" bgColor="#78350f" />
-                        <div className="border border-slate-300 border-t-0 divide-y divide-slate-200">
-                            {/* Backup row */}
-                            <div className="flex items-start gap-3 px-4 py-3">
-                                <span className="text-lg leading-none flex-shrink-0 mt-0.5">
-                                    {vm?.protection_type ? '🛡️' : '❌'}
-                                </span>
+                        <div style={{ border: '1.5px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
+                            {/* Backup */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{vm?.protection_type ? '🛡️' : '❌'}</span>
                                 <div>
-                                    <p className="text-xs font-bold text-slate-800 mb-0.5">สถานะการสำรองข้อมูล (Backup Protection)</p>
+                                    <p style={{ fontSize: 11, fontWeight: 800, color: '#1e293b', margin: '0 0 3px' }}>สถานะการสำรองข้อมูล (Backup Protection)</p>
                                     {vm?.protection_type ? (
-                                        <p className="text-xs font-semibold" style={{ color: '#16a34a' }}>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', margin: 0 }}>
                                             ได้รับการปกป้องแล้ว — Policy: {vm.protection_name || vm.protection_type}
                                             {vm.backup_file_count ? ` · ${vm.backup_file_count} ชุดสำรอง` : ''}
                                         </p>
                                     ) : (
-                                        <p className="text-xs font-semibold" style={{ color: '#c0392b' }}>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#c0392b', margin: 0 }}>
                                             ไม่มีการสำรองข้อมูล (Unprotected) — ความเสี่ยงสูง ควรกำหนด Backup Policy โดยทันที
                                         </p>
                                     )}
                                 </div>
                             </div>
-
-                            {/* Alarms row */}
-                            <div className="flex items-start gap-3 px-4 py-3">
-                                <span className="text-lg leading-none flex-shrink-0 mt-0.5">
-                                    {totalAlarms === 0 ? '✅' : '⚠️'}
-                                </span>
+                            {/* Alarms */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#fafafa' }}>
+                                <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{totalAlarms === 0 ? '✅' : '⚠️'}</span>
                                 <div>
-                                    <p className="text-xs font-bold text-slate-800 mb-0.5">
+                                    <p style={{ fontSize: 11, fontWeight: 800, color: '#1e293b', margin: '0 0 3px' }}>
                                         การแจ้งเตือน (Alarms &amp; Alerts) — {totalAlarms} รายการ
                                     </p>
                                     {totalAlarms === 0 ? (
-                                        <p className="text-xs font-semibold" style={{ color: '#16a34a' }}>
-                                            ทำงานปกติ — ไม่พบการแจ้งเตือน
-                                        </p>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', margin: 0 }}>ทำงานปกติ — ไม่พบการแจ้งเตือน</p>
                                     ) : (
                                         <>
-                                            <p className="text-xs font-semibold" style={{ color: '#d97706' }}>
+                                            <p style={{ fontSize: 11, fontWeight: 600, color: '#d97706', margin: 0 }}>
                                                 พบ {totalAlarms} รายการ · รายการล่าสุด: {firstAlarm?.title || firstAlarm?.description || 'ดูรายละเอียดในระบบ'}
                                             </p>
                                             {totalAlarms > 1 && (
-                                                <p className="text-[10px] text-slate-500 italic mt-0.5">
+                                                <p style={{ fontSize: 9, color: '#64748b', fontStyle: 'italic', margin: '3px 0 0' }}>
                                                     และอีก {totalAlarms - 1} รายการ — ดูรายละเอียดเพิ่มเติมในระบบ VMStat
                                                 </p>
                                             )}
@@ -575,105 +590,130 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                                     )}
                                 </div>
                             </div>
-
                             {/* Recommendations */}
-                            <div className="px-4 py-3">
-                                <p className="text-xs font-bold text-slate-800 mb-1.5">ข้อเสนอแนะ (Recommendations)</p>
-                                <div className="space-y-1">
+                            <div style={{ padding: '12px 16px' }}>
+                                <p style={{ fontSize: 11, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>ข้อเสนอแนะ (Recommendations)</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {recs.map((r, i) => (
-                                        <div key={i} className="flex items-start gap-2 text-xs"
-                                            style={{ borderLeft: `3px solid ${r.color}`, paddingLeft: 8 }}>
-                                            <span className="font-bold flex-shrink-0" style={{ color: r.color }}>{r.icon}</span>
-                                            <span className="text-slate-700">{r.text}</span>
+                                        <div key={i} style={{
+                                            display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11,
+                                            borderLeft: `3px solid ${r.color}`, paddingLeft: 10,
+                                            backgroundColor: `${r.color}08`, borderRadius: '0 4px 4px 0', padding: '5px 10px',
+                                        }}>
+                                            <span style={{ fontWeight: 900, flexShrink: 0, color: r.color }}>{r.icon}</span>
+                                            <span style={{ color: '#334155' }}>{r.text}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         </div>
-                    </section >
-                </div>
+                    </section>
 
-                {/* ═══════════════ SIGNATURES ═══════════════ */}
-                <div className="mt-6 break-inside-avoid" >
-                    {/* Signature section header */}
-                    <div style={{ borderTop: '2px solid #1a3560', marginBottom: 8, paddingTop: 6 }
-                    }>
-                        <p style={{ fontSize: 9, fontWeight: 700, color: '#1a3560', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>
-                            ลายมือชื่อผู้รับรอง / Authorization Signatures
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-6">
-                        {([
-                            { th: 'ผู้จัดทำ', en: 'Prepared By' },
-                            { th: 'ผู้ตรวจสอบ', en: 'Reviewed By' },
-                            { th: 'ผู้อนุมัติ', en: 'Approved By' },
-                        ] as const).map(({ th, en }) => (
-                            <div key={en} className="border border-slate-300 px-3 py-2 rounded-sm bg-white">
-                                <p className="text-[9px] font-bold text-[#1a3560] mb-0">{en}</p>
-                                <p className="text-[8px] text-slate-500 mb-6">{th}</p>
-
-                                <div className="border-b-[1.5px] border-slate-400 mb-4" />
-
-                                <div className="space-y-4">
-                                    <p className="text-[9px] text-slate-500 m-0 flex items-end">
-                                        <span className="w-16">ลายเซ็นต์ :</span> <span className="border-b border-dotted border-slate-400 flex-1"></span>
-                                    </p>
-                                    <p className="text-[9px] text-slate-500 m-0 flex items-end">
-                                        <span className="w-16">วันที่ :</span> <span className="border-b border-dotted border-slate-400 flex-1"></span>
-                                    </p>
-                                    <p className="text-[9px] text-slate-500 m-0 flex items-end">
-                                        <span className="w-16">ตำแหน่ง :</span> <span className="border-b border-dotted border-slate-400 flex-1"></span>
-                                    </p>
-                                </div>
+                    {/* ── AUTHORIZATION SIGNATURES ── */}
+                    <section className="break-inside-avoid mb-5">
+                        {/* Section header */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
+                            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #1a3560 100%)',
+                            borderRadius: '4px 4px 0 0',
+                        }}>
+                            <div style={{
+                                width: 32, height: 32, borderRadius: '50%',
+                                border: '2px solid rgba(255,255,255,0.4)',
+                                background: 'rgba(255,255,255,0.12)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                fontSize: 14,
+                            }}>✍️</div>
+                            <div>
+                                <p style={{ color: 'white', fontSize: 12, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
+                                    ลายมือชื่อผู้รับรอง (Authorization Signatures)
+                                </p>
+                                <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 9, margin: 0, lineHeight: 1.3, marginTop: 2 }}>
+                                    เอกสารนี้มีผลบังคับใช้เมื่อได้รับการลงนามรับรองจากผู้มีอำนาจครบทั้ง 3 ฝ่ายแล้วเท่านั้น
+                                </p>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ═══════════════ FOOTER ═══════════════ */}
-                <div className="mt-4 break-inside-avoid" >
-                    {/* Print info row */}
-                    <div style={{
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 2,
-                        padding: '6px 14px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 8,
-                    }}>
-                        <div style={{ display: 'flex', gap: 24 }}>
-                            <span style={{ fontSize: 9, color: '#64748b' }}>
-                                <span style={{ fontWeight: 700, color: '#334155' }}>พิมพ์เมื่อ / Printed:</span>{' '}
-                                {printDate} เวลา {printTime} น.
-                            </span>
-                            <span style={{ fontSize: 9, color: '#64748b' }}>
-                                <span style={{ fontWeight: 700, color: '#334155' }}>ผู้พิมพ์ / Printed By:</span>{' '}
-                                {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.username || 'Administrator')}
-                            </span>
-                            <span style={{ fontSize: 9, color: '#64748b' }}>
-                                <span style={{ fontWeight: 700, color: '#334155' }}>VM:</span>{' '}
-                                {vm?.name || '—'}
-                            </span>
                         </div>
-                        <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'monospace' }}>Page 1 / 3</span>
-                    </div>
-                    {/* Confidential strip */}
-                    <div style={{
-                        borderTop: '1px solid #cbd5e1',
-                        paddingTop: 6,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                    }}>
-                        <p style={{ fontSize: 8, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>
-                            CONFIDENTIAL DOCUMENT — FOR INTERNAL USE ONLY · ห้ามเผยแพร่ต่อโดยไม่ได้รับอนุญาต
-                        </p>
-                        <p style={{ fontSize: 8, color: '#94a3b8', margin: 0 }}>
-                            Sangfor SCP VMStat © 2026
-                        </p>
-                    </div>
+
+                        {/* Signature cards container */}
+                        <div style={{
+                            border: '1.5px solid #e2e8f0', borderTop: 'none',
+                            borderRadius: '0 0 4px 4px', padding: 16,
+                            backgroundColor: '#f8fafc',
+                            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14,
+                        }}>
+                            {([
+                                { th: 'ผู้จัดทำรายงาน', en: 'Prepared By', color: '#1e40af', bg: '#eff6ff' },
+                                { th: 'ผู้ตรวจสอบรายงาน', en: 'Reviewed By', color: '#065f46', bg: '#f0fdf4' },
+                                { th: 'ผู้อนุมัติรายงาน', en: 'Approved By', color: '#7c2d12', bg: '#fff7ed' },
+                            ] as const).map(({ th, en, color, bg }) => (
+                                <div key={en} style={{
+                                    border: `1.5px solid ${color}30`, borderRadius: 6,
+                                    overflow: 'hidden', backgroundColor: 'white',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+                                }}>
+                                    {/* Card header */}
+                                    <div style={{ backgroundColor: color, padding: '8px 14px' }}>
+                                        <p style={{ color: 'white', fontSize: 11, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>{en}</p>
+                                        <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 9, margin: '2px 0 0', lineHeight: 1.2 }}>{th}</p>
+                                    </div>
+
+                                    {/* Signature drawing area */}
+                                    <div style={{
+                                        height: 90, backgroundColor: bg,
+                                        borderBottom: `1.5px dashed ${color}35`,
+                                        display: 'flex', flexDirection: 'column',
+                                        alignItems: 'center', justifyContent: 'flex-end',
+                                        paddingBottom: 6,
+                                    }}>
+                                        <div style={{
+                                            width: '75%', borderBottom: `1.5px solid ${color}60`,
+                                            marginBottom: 4,
+                                        }} />
+                                        <span style={{ fontSize: 8, color: `${color}60`, fontStyle: 'italic' }}>
+                                            ลายเซ็นต์ / Signature
+                                        </span>
+                                    </div>
+
+                                    {/* Detail fields */}
+                                    <div style={{ padding: '10px 14px 14px' }}>
+                                        {([
+                                            { label: 'ชื่อ-นามสกุล', sub: 'Full Name' },
+                                            { label: 'ตำแหน่ง', sub: 'Position / Title' },
+                                            { label: 'วันที่', sub: 'Date (DD/MM/YYYY)' },
+                                        ]).map(({ label, sub }) => (
+                                            <div key={label} style={{ marginBottom: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 3 }}>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#334155' }}>{label}</span>
+                                                    <span style={{ fontSize: 8, color: '#94a3b8' }}>({sub})</span>
+                                                </div>
+                                                <div style={{
+                                                    borderBottom: `1px solid ${color}50`,
+                                                    width: '100%', height: 20,
+                                                }} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Note bar */}
+                        <div style={{
+                            marginTop: 10, padding: '7px 14px',
+                            backgroundColor: '#fefce8', border: '1px solid #fde047',
+                            borderRadius: 4, display: 'flex', alignItems: 'flex-start', gap: 8,
+                        }}>
+                            <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
+                            <p style={{ fontSize: 9, color: '#713f12', margin: 0, lineHeight: 1.6 }}>
+                                <strong>หมายเหตุ / Remark:</strong>{' '}
+                                เอกสารฉบับนี้จัดทำโดยระบบ VMStat อัตโนมัติ และมีผลบังคับเมื่อได้รับการลงนามครบทั้ง 3 ฝ่ายแล้วเท่านั้น ·
+                                This document is system-generated and becomes effective only upon completion of all three authorized signatures.
+                            </p>
+                        </div>
+                    </section>
+
+                    {/* PAGE 3 FOOTER */}
+                    <PageFooter pageNum={3} {...footerProps} />
                 </div>
 
             </div>
