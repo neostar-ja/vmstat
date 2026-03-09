@@ -20,8 +20,8 @@ import type { Tab7Props } from './types';
 
 // ─── Chart dimensions ───────────────────────────────────────
 // Must be fixed pixels — no ResponsiveContainer
-const CH = 90;  // chart height — fits comfortably in 2-col layout
-const CW2 = 306; // half-width for 2-column chart grid
+const CW = 640; // chart width — full content width (1-column layout)
+const CH = 80;  // chart height — 1-column with comfortable visual size
 
 // ─── Helper math ────────────────────────────────────────────
 const numAvg = (data: any[], key: string) =>
@@ -80,11 +80,12 @@ interface ChartCardProps {
     label2?: string;
     kind?: 'area' | 'line';
     domainMax?: number;
-    w?: number; // override chart width (default CW2 for 2-col)
-    h?: number; // override chart height (default CH)
+    accentColor?: string; // colored left-border accent (defaults to primary color)
+    w?: number;
+    h?: number;
 }
 
-function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label, label2, kind = 'area', domainMax, w = CW2, h = CH }: ChartCardProps) {
+function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label, label2, kind = 'area', domainMax, accentColor, w = CW, h = CH }: ChartCardProps) {
     const gradId = `pr-g-${dataKey}`;
     const axisProps = { tick: { fontSize: 7, fill: '#6b7280' }, minTickGap: 30, tickMargin: 2 };
     const yDomain: [number | string, number | string] = domainMax ? [0, domainMax] : ['auto', 'auto'];
@@ -98,7 +99,7 @@ function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label,
     void min2;
 
     return (
-        <div className="break-inside-avoid border border-slate-200 rounded overflow-hidden">
+        <div className="break-inside-avoid border border-slate-200 rounded overflow-hidden" style={{ borderLeft: `4px solid ${accentColor ?? color}` }}>
             {/* Title bar */}
             <div className="bg-slate-50 border-b border-slate-200 px-2 py-1">
                 <p className="text-[10px] font-bold text-slate-700 leading-tight">{title}</p>
@@ -202,6 +203,43 @@ function SecHead({ num, title, sub, bgColor = '#1e293b' }: { num: string; title:
     );
 }
 
+// ─── Page footer (explicit page number per page) ────────────
+function PageFooter({ pageNum, totalPages, printDate, printTime, userName, year }: {
+    pageNum: number; totalPages: number;
+    printDate: string; printTime: string; userName: string; year: number;
+}) {
+    return (
+        <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            borderTop: '1.5px solid #cbd5e1',
+            padding: '7px 4mm',
+            backgroundColor: 'white',
+        }}>
+            {/* Left */}
+            <div>
+                <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>CONFIDENTIAL · For Internal Use Only · WUH VMStat</p>
+                <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>พิมพ์เมื่อ: {printDate} {printTime} น. · โดย: {userName}</p>
+            </div>
+            {/* Center — page number badge */}
+            <div style={{
+                display: 'flex', alignItems: 'baseline', gap: 3,
+                border: '1.5px solid #1a3560', borderRadius: 4,
+                padding: '3px 14px', backgroundColor: '#f8fafc',
+            }}>
+                <span style={{ fontSize: 8, color: '#64748b' }}>หน้า</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: '#1a3560', lineHeight: 1 }}>{pageNum}</span>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>/</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{totalPages}</span>
+            </div>
+            {/* Right */}
+            <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>เอกสารอ้างอิง: WUH-IT-VMRPT-{year}</p>
+                <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>Sangfor SCP VMStat © {year}</p>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main component ──────────────────────────────────────────
 export default function VMDetailPrintReport(props: Tab7Props) {
     const {
@@ -247,11 +285,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     .animate-fade-in { display: none !important; }
 
                     /* ── Report root ── */
-                    .vm-print-report {
-                        display: block !important;
-                        padding-top: 38px !important;   /* space for fixed running header */
-                        padding-bottom: 52px !important; /* space for fixed footer */
-                    }
+                    .vm-print-report { display: block !important; }
 
                     /* ── Fixed running header — top of EVERY page ── */
                     .print-rh {
@@ -267,27 +301,24 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         z-index: 1000;
                     }
 
-                    /* ── Fixed footer — bottom of EVERY page ── */
-                    .print-rf {
-                        position: fixed;
-                        bottom: 0; left: 0; right: 0;
-                        height: 48px;
-                        background: white;
-                        border-top: 1.5px solid #cbd5e1;
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 0 4mm;
-                        z-index: 1000;
+                    /* ── Per-page wrapper: fills exactly one A4 printed page ── */
+                    .print-page {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        /* A4 content area: 297mm − 14mm top − 16mm bottom = 267mm */
+                        min-height: calc(297mm - 14mm - 16mm);
+                        break-after: page !important;
+                        page-break-after: always !important;
                     }
-
-                    /* ── CSS page counter for page number ── */
-                    .print-pgnum::before { content: counter(page); }
-                    .print-pgtotal::before { content: "3"; }
+                    .print-page:last-child {
+                        break-after: auto !important;
+                        page-break-after: auto !important;
+                    }
+                    /* Content fills remaining space — footer is pushed to physical page bottom */
+                    .print-page-content { flex: 1 !important; }
 
                     /* ── Page break helpers ── */
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
-                    .page-start { break-before: page !important; page-break-before: always !important; }
 
                     /* ── Recharts ── */
                     .recharts-wrapper, .recharts-surface { background: white !important; }
@@ -314,36 +345,11 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     </span>
                 </div>
 
-                {/* ════════════════════════════════════════════
-                    FIXED FOOTER — appears on every page
-                    ════════════════════════════════════════════ */}
-                <div className="print-rf">
-                    {/* Left */}
-                    <div>
-                        <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>CONFIDENTIAL · For Internal Use Only · WUH VMStat</p>
-                        <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>พิมพ์เมื่อ: {printDate} {printTime} น. · โดย: {userName}</p>
-                    </div>
-                    {/* Center — page number via CSS counter */}
-                    <div style={{
-                        display: 'flex', alignItems: 'baseline', gap: 3,
-                        border: '1.5px solid #1a3560', borderRadius: 4,
-                        padding: '3px 14px', backgroundColor: '#f8fafc',
-                    }}>
-                        <span style={{ fontSize: 8, color: '#64748b' }}>หน้า</span>
-                        <span className="print-pgnum" style={{ fontSize: 18, fontWeight: 900, color: '#1a3560', lineHeight: 1 }} />
-                        <span style={{ fontSize: 10, color: '#94a3b8' }}>/</span>
-                        <span className="print-pgtotal" style={{ fontSize: 13, fontWeight: 700, color: '#334155' }} />
-                    </div>
-                    {/* Right */}
-                    <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>เอกสารอ้างอิง: WUH-IT-VMRPT-{YEAR}</p>
-                        <p style={{ fontSize: 7.5, color: '#94a3b8', margin: 0 }}>Sangfor SCP VMStat © {YEAR}</p>
-                    </div>
-                </div>
-
                 {/* ════════════════════════════════════════
                     PAGE 1: Cover Header + Sections 1 & 2
                     ════════════════════════════════════════ */}
+                <div className="print-page" style={{ paddingTop: 40 }}>
+                <div className="print-page-content">
 
                 {/* ── HEADER ── */}
                 <div className="mb-5 relative border-[1.5px] border-slate-300 rounded overflow-hidden">
@@ -520,10 +526,15 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     </table>
                 </section>
 
+                </div>{/* /print-page-content p1 */}
+                <PageFooter pageNum={1} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
+                </div>{/* /print-page p1 */}
+
                 {/* ════════════════════════════════════════
-                    PAGE 2: Performance Charts (2-column grid)
+                    PAGE 2: Performance Charts (1-column)
                     ════════════════════════════════════════ */}
-                <div className="page-start">
+                <div className="print-page" style={{ paddingTop: 40 }}>
+                <div className="print-page-content">
                     <SecHead
                         num="3"
                         title="ประสิทธิภาพการทำงาน (Performance Metrics)"
@@ -533,25 +544,28 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         bgColor="#4c1d95"
                     />
                     {chartData.length > 0 ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-                            <ChartCard title="📊 1. CPU Usage (%)" unit="%" dataKey="cpu" data={chartData} color="#3b82f6" label="CPU %" kind="area" domainMax={100} />
-                            <ChartCard title="📊 2. Memory Usage (%)" unit="%" dataKey="memory" data={chartData} color="#8b5cf6" label="Memory %" kind="area" domainMax={100} />
-                            <ChartCard title="📈 3. Disk IOPS (Read / Write)" unit=" IOPS" dataKey="diskRead" dataKey2="diskWrite" data={chartData} color="#0ea5e9" color2="#ec4899" label="Read" label2="Write" kind="line" />
-                            <ChartCard title="📈 4. Storage Trend (GB Used)" unit=" GB" dataKey="storageUsedGB" data={chartData} color="#6366f1" label="Used GB" kind="area" />
-                            <ChartCard title="🌐 5. Network Traffic (MB/s)" unit=" MB/s" dataKey="networkIn" dataKey2="networkOut" data={chartData} color="#10b981" color2="#f59e0b" label="RX (In)" label2="TX (Out)" kind="line" />
-                            <ChartCard title="⏱️ 6. Storage Usage (%)" unit="%" dataKey="storagePercent" data={chartData} color="#14b8a6" label="Storage %" kind="area" domainMax={100} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                            <ChartCard title="📊 1. CPU Usage (%)" unit="%" dataKey="cpu" data={chartData} color="#3b82f6" accentColor="#3b82f6" label="CPU %" kind="area" domainMax={100} />
+                            <ChartCard title="📊 2. Memory Usage (%)" unit="%" dataKey="memory" data={chartData} color="#8b5cf6" accentColor="#8b5cf6" label="Memory %" kind="area" domainMax={100} />
+                            <ChartCard title="📈 3. Disk IOPS (Read / Write)" unit=" IOPS" dataKey="diskRead" dataKey2="diskWrite" data={chartData} color="#0ea5e9" color2="#ec4899" accentColor="#0ea5e9" label="Read" label2="Write" kind="line" />
+                            <ChartCard title="📈 4. Storage Trend (GB Used)" unit=" GB" dataKey="storageUsedGB" data={chartData} color="#6366f1" accentColor="#6366f1" label="Used GB" kind="area" />
+                            <ChartCard title="🌐 5. Network Traffic (MB/s)" unit=" MB/s" dataKey="networkIn" dataKey2="networkOut" data={chartData} color="#10b981" color2="#f59e0b" accentColor="#10b981" label="RX (In)" label2="TX (Out)" kind="line" />
+                            <ChartCard title="⏱️ 6. Storage Usage (%)" unit="%" dataKey="storagePercent" data={chartData} color="#14b8a6" accentColor="#14b8a6" label="Storage %" kind="area" domainMax={100} />
                         </div>
                     ) : (
                         <div style={{ marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 4, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>
                             ไม่มีข้อมูล Metrics — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
                         </div>
                     )}
-                </div>{/* /page-start p2 */}
+                </div>{/* /print-page-content p2 */}
+                <PageFooter pageNum={2} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
+                </div>{/* /print-page p2 */}
 
                 {/* ════════════════════════════════════════
                     PAGE 3: Health & Backup + Signatures
                     ════════════════════════════════════════ */}
-                <div className="page-start">
+                <div className="print-page" style={{ paddingTop: 40 }}>
+                <div className="print-page-content">
 
                     {/* ── SECTION 4: Health & Backup ── */}
                     <section className="break-inside-avoid mb-5">
@@ -719,7 +733,9 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         </div>
                     </section>
 
-                </div>{/* /page-start p3 */}
+                </div>{/* /print-page-content p3 */}
+                <PageFooter pageNum={3} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
+                </div>{/* /print-page p3 */}
 
             </div>{/* /vm-print-report */}
         </>
