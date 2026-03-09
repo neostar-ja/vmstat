@@ -21,8 +21,8 @@ import type { Tab7Props } from './types';
 
 // ─── Chart dimensions ───────────────────────────────────────
 // Must be fixed pixels — no ResponsiveContainer
-const CW = 640; // full A4 content width (210mm - 24mm margins) at ~96dpi — 1-column layout
-const CH = 140;
+const CW = 640; // full A4 content width at ~96dpi — 1-column layout
+const CH = 75;  // reduced so 6 charts fit in one print page (was 140)
 
 // ─── Helper math ────────────────────────────────────────────
 const numAvg = (data: any[], key: string) =>
@@ -317,7 +317,10 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     .recharts-cartesian-grid line { stroke: #e5e7eb !important; }
 
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
-                    .page-break-before { break-before: page !important; page-break-before: always !important; }
+                    /* Each .print-page fills exactly one printed page; footer is anchored at the bottom */
+                    .print-page { display: flex !important; flex-direction: column !important; min-height: 100vh; break-after: page; page-break-after: always; }
+                    .print-page:last-child { break-after: auto !important; page-break-after: auto !important; }
+                    .print-page-content { flex: 1 !important; }
                 }
             `}</style>
 
@@ -327,6 +330,8 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                 {/* ═══════════════════════════════════════════════
                     PAGE 1: Cover Header + General Info + Resources
                     ═══════════════════════════════════════════════ */}
+                <div className="print-page">
+                <div className="print-page-content">
 
                 {/* ── HEADER ── */}
                 <div className="mb-5 relative border-[1.5px] border-slate-300 rounded overflow-hidden">
@@ -503,15 +508,17 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     </table>
                 </section>
 
+                </div>{/* /print-page-content p1 */}
                 {/* PAGE 1 FOOTER */}
                 <PageFooter pageNum={1} {...footerProps} />
-
+                </div>{/* /print-page p1 */}
 
                 {/* ═══════════════════════════════════════════════
                     PAGE 2: Performance Charts
                     ═══════════════════════════════════════════════ */}
-                <section className="page-break-before">
+                <div className="print-page">
                     <RunningHeader vm={vm} printDate={printDate} printTime={printTime} />
+                    <div className="print-page-content">
                     <SecHead
                         num="3"
                         title="ประสิทธิภาพการทำงาน (Performance Metrics)"
@@ -521,7 +528,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         bgColor="#4c1d95"
                     />
                     {chartData.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                             <ChartCard title="📊 1. CPU Usage (%)" unit="%" dataKey="cpu" data={chartData} color="#3b82f6" label="CPU %" kind="area" domainMax={100} />
                             <ChartCard title="📊 2. Memory Usage (%)" unit="%" dataKey="memory" data={chartData} color="#8b5cf6" label="Memory %" kind="area" domainMax={100} />
                             <ChartCard title="📈 3. Disk IOPS (Read / Write)" unit=" IOPS" dataKey="diskRead" dataKey2="diskWrite" data={chartData} color="#0ea5e9" color2="#ec4899" label="Read" label2="Write" kind="line" />
@@ -534,17 +541,18 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                             ไม่มีข้อมูล Metrics — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
                         </div>
                     )}
-                </section>
+                    </div>{/* /print-page-content p2 */}
 
                 {/* PAGE 2 FOOTER */}
                 <PageFooter pageNum={2} {...footerProps} />
-
+                </div>{/* /print-page p2 */}
 
                 {/* ═══════════════════════════════════════════════
                     PAGE 3: Health & Backup + Authorization Signatures
                     ═══════════════════════════════════════════════ */}
-                <div className="page-break-before">
+                <div className="print-page">
                     <RunningHeader vm={vm} printDate={printDate} printTime={printTime} />
+                    <div className="print-page-content">
 
                     {/* ── SECTION 4: Health & Backup ── */}
                     <section className="break-inside-avoid mb-5">
@@ -712,9 +720,10 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         </div>
                     </section>
 
+                    </div>{/* /print-page-content p3 */}
                     {/* PAGE 3 FOOTER */}
                     <PageFooter pageNum={3} {...footerProps} />
-                </div>
+                </div>{/* /print-page p3 */}
 
             </div>
         </>
