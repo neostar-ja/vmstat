@@ -21,7 +21,7 @@ import type { Tab7Props } from './types';
 // ─── Chart dimensions ───────────────────────────────────────
 // Must be fixed pixels — no ResponsiveContainer
 const CW = 640; // chart width — full content width (1-column layout)
-const CH = 80;  // chart height — 1-column with comfortable visual size
+const CH = 100; // chart height — taller for readability
 
 // ─── Helper math ────────────────────────────────────────────
 const numAvg = (data: any[], key: string) =>
@@ -98,19 +98,37 @@ function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label,
     const avg2 = dataKey2 ? numAvg(data, dataKey2) : 0;
     void min2;
 
+    const ac = accentColor ?? color;
     return (
-        <div className="break-inside-avoid border border-slate-200 rounded overflow-hidden" style={{ borderLeft: `4px solid ${accentColor ?? color}` }}>
-            {/* Title bar */}
-            <div className="bg-slate-50 border-b border-slate-200 px-2 py-1">
-                <p className="text-[10px] font-bold text-slate-700 leading-tight">{title}</p>
+        <div className="break-inside-avoid rounded overflow-hidden" style={{
+            border: '1px solid #e2e8f0',
+            borderLeft: `4px solid ${ac}`,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            marginBottom: 2,
+        }}>
+            {/* Title bar with subtle tinted background */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '6px 10px',
+                background: `linear-gradient(90deg, ${ac}14 0%, white 60%)`,
+                borderBottom: `1px solid ${ac}25`,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                        display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                        backgroundColor: ac, flexShrink: 0,
+                    }} />
+                    <p style={{ fontSize: 10, fontWeight: 800, color: '#1e293b', margin: 0 }}>{title}</p>
+                </div>
+                {/* Legend for dual-series */}
                 {dataKey2 && color2 && label2 && (
-                    <div className="flex gap-3 mt-0.5">
-                        <span className="flex items-center gap-1 text-[9px]" style={{ color }}>
-                            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: color }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8, color }}>
+                            <span style={{ display: 'inline-block', width: 18, height: 2.5, borderRadius: 2, backgroundColor: color }} />
                             {label}
                         </span>
-                        <span className="flex items-center gap-1 text-[9px]" style={{ color: color2 }}>
-                            <span className="inline-block w-4 h-0.5 rounded" style={{ backgroundColor: color2 }} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8, color: color2 }}>
+                            <span style={{ display: 'inline-block', width: 18, height: 2.5, borderRadius: 2, backgroundColor: color2 }} />
                             {label2}
                         </span>
                     </div>
@@ -118,57 +136,68 @@ function ChartCard({ title, unit, dataKey, dataKey2, data, color, color2, label,
             </div>
 
             {/* Chart */}
-            <div className="p-1 bg-white">
+            <div style={{ backgroundColor: 'white', padding: '4px 4px 0' }}>
                 {kind === 'area' ? (
-                    <AreaChart width={w} height={h} data={data} margin={{ top: 4, right: 4, left: -18, bottom: 2 }}>
+                    <AreaChart width={w} height={h} data={data} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
                         <defs>
                             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-                                <stop offset="95%" stopColor={color} stopOpacity={0} />
+                                <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+                                <stop offset="95%" stopColor={color} stopOpacity={0.03} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <CartesianGrid strokeDasharray="2 3" stroke="#f1f5f9" vertical={false} />
                         <XAxis dataKey="time" {...axisProps} />
-                        <YAxis tick={{ fontSize: 8, fill: '#6b7280' }} domain={yDomain} width={24} />
-                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 7, fill: '#94a3b8' }} domain={yDomain} width={26} />
+                        <Tooltip contentStyle={{ fontSize: 9, borderRadius: 4, border: `1px solid ${color}40`, backgroundColor: 'white' }} />
                         <Area isAnimationActive={false} type="monotone" dataKey={dataKey} name={label}
-                            stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} />
+                            stroke={color} strokeWidth={2} fill={`url(#${gradId})`} dot={false} />
                     </AreaChart>
                 ) : (
-                    <LineChart width={w} height={h} data={data} margin={{ top: 4, right: 4, left: -18, bottom: 2 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <LineChart width={w} height={h} data={data} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 3" stroke="#f1f5f9" vertical={false} />
                         <XAxis dataKey="time" {...axisProps} />
-                        <YAxis tick={{ fontSize: 8, fill: '#6b7280' }} width={24} />
-                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 7, fill: '#94a3b8' }} width={26} />
+                        <Tooltip contentStyle={{ fontSize: 9, borderRadius: 4, border: `1px solid ${color}40`, backgroundColor: 'white' }} />
                         <Line isAnimationActive={false} type="monotone" dataKey={dataKey} name={label}
-                            stroke={color} strokeWidth={1.5} dot={false} />
+                            stroke={color} strokeWidth={2} dot={false} />
                         {dataKey2 && color2 && label2 && (
                             <Line isAnimationActive={false} type="monotone" dataKey={dataKey2} name={label2}
-                                stroke={color2} strokeWidth={1.5} dot={false} />
+                                stroke={color2} strokeWidth={2} dot={false} strokeDasharray="4 2" />
                         )}
                     </LineChart>
                 )}
             </div>
 
-            {/* Stats row */}
-            <div className="border-t border-slate-200 bg-slate-50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                <span className="text-[9px] text-slate-500">
-                    <span className="font-bold text-slate-700">Max</span> {fmt(maxVal, unit)}
-                </span>
-                <span className="text-[9px] text-slate-500">
-                    <span className="font-bold text-slate-700">Min</span> {fmt(minVal, unit)}
-                </span>
-                <span className="text-[9px] text-slate-500">
-                    <span className="font-bold text-slate-700">Avg</span> {fmt(avgVal, unit)}
-                </span>
+            {/* Stats bar */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 0,
+                borderTop: `1px solid ${ac}20`,
+                backgroundColor: `${ac}08`,
+                padding: '4px 10px',
+            }}>
+                {[ 
+                    { label: 'Max', value: fmt(maxVal, unit), bold: true },
+                    { label: 'Min', value: fmt(minVal, unit), bold: false },
+                    { label: 'Avg', value: fmt(avgVal, unit), bold: true },
+                ].map(({ label: sl, value, bold }, i) => (
+                    <span key={sl} style={{
+                        fontSize: 8.5, color: '#475569',
+                        paddingRight: 14, marginRight: 14,
+                        borderRight: i < 2 ? '1px solid #e2e8f0' : 'none',
+                    }}>
+                        <span style={{ fontWeight: 700, color: '#1e293b' }}>{sl}</span>{' '}
+                        <span style={{ fontWeight: bold ? 800 : 500, color: bold ? ac : '#64748b' }}>{value}</span>
+                    </span>
+                ))}
                 {dataKey2 && label2 && (
                     <>
-                        <span className="text-[9px] text-slate-400">|</span>
-                        <span className="text-[9px] text-slate-500">
-                            <span className="font-bold text-slate-600">{label2} Max</span> {fmt(max2, unit)}
+                        <span style={{ fontSize: 8.5, color: '#475569', paddingRight: 14, marginRight: 14, borderRight: '1px solid #e2e8f0' }}>
+                            <span style={{ fontWeight: 700, color: '#1e293b' }}>{label2} Max</span>{' '}
+                            <span style={{ fontWeight: 800, color: color2 ?? '#888' }}>{fmt(max2, unit)}</span>
                         </span>
-                        <span className="text-[9px] text-slate-500">
-                            <span className="font-bold text-slate-600">Avg</span> {fmt(avg2, unit)}
+                        <span style={{ fontSize: 8.5, color: '#475569' }}>
+                            <span style={{ fontWeight: 700, color: '#1e293b' }}>Avg</span>{' '}
+                            <span style={{ fontWeight: 800, color: color2 ?? '#888' }}>{fmt(avg2, unit)}</span>
                         </span>
                     </>
                 )}
@@ -291,7 +320,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     .print-rh {
                         position: fixed;
                         top: 0; left: 0; right: 0;
-                        height: 34px;
+                        height: 32px;
                         background: white;
                         border-bottom: 2px solid #1a3560;
                         display: flex;
@@ -301,24 +330,10 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         z-index: 1000;
                     }
 
-                    /* ── Per-page wrapper: fills exactly one A4 printed page ── */
-                    .print-page {
-                        display: flex !important;
-                        flex-direction: column !important;
-                        /* A4 content area: 297mm − 14mm top − 16mm bottom = 267mm */
-                        min-height: calc(297mm - 14mm - 16mm);
-                        break-after: page !important;
-                        page-break-after: always !important;
-                    }
-                    .print-page:last-child {
-                        break-after: auto !important;
-                        page-break-after: auto !important;
-                    }
-                    /* Content fills remaining space — footer is pushed to physical page bottom */
-                    .print-page-content { flex: 1 !important; }
-
                     /* ── Page break helpers ── */
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+                    /* Force new page BEFORE page 2 and 3 sections */
+                    .page-break-before { break-before: page !important; page-break-before: always !important; }
 
                     /* ── Recharts ── */
                     .recharts-wrapper, .recharts-surface { background: white !important; }
@@ -348,8 +363,8 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                 {/* ════════════════════════════════════════
                     PAGE 1: Cover Header + Sections 1 & 2
                     ════════════════════════════════════════ */}
-                <div className="print-page" style={{ paddingTop: 40 }}>
-                <div className="print-page-content">
+                {/* paddingTop gives space below fixed running header */}
+                <div style={{ paddingTop: 38 }}>
 
                 {/* ── HEADER ── */}
                 <div className="mb-5 relative border-[1.5px] border-slate-300 rounded overflow-hidden">
@@ -526,15 +541,13 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     </table>
                 </section>
 
-                </div>{/* /print-page-content p1 */}
+                </div>{/* /page-1 content */}
                 <PageFooter pageNum={1} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
-                </div>{/* /print-page p1 */}
 
                 {/* ════════════════════════════════════════
                     PAGE 2: Performance Charts (1-column)
                     ════════════════════════════════════════ */}
-                <div className="print-page" style={{ paddingTop: 40 }}>
-                <div className="print-page-content">
+                <div className="page-break-before" style={{ paddingTop: 38 }}>
                     <SecHead
                         num="3"
                         title="ประสิทธิภาพการทำงาน (Performance Metrics)"
@@ -557,15 +570,13 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                             ไม่มีข้อมูล Metrics — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
                         </div>
                     )}
-                </div>{/* /print-page-content p2 */}
+                </div>{/* /page-2 charts */}
                 <PageFooter pageNum={2} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
-                </div>{/* /print-page p2 */}
 
                 {/* ════════════════════════════════════════
                     PAGE 3: Health & Backup + Signatures
                     ════════════════════════════════════════ */}
-                <div className="print-page" style={{ paddingTop: 40 }}>
-                <div className="print-page-content">
+                <div className="page-break-before" style={{ paddingTop: 38 }}>
 
                     {/* ── SECTION 4: Health & Backup ── */}
                     <section className="break-inside-avoid mb-5">
@@ -733,9 +744,8 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         </div>
                     </section>
 
-                </div>{/* /print-page-content p3 */}
+                </div>{/* /page-3 */}
                 <PageFooter pageNum={3} totalPages={3} printDate={printDate} printTime={printTime} userName={userName} year={YEAR} />
-                </div>{/* /print-page p3 */}
 
             </div>{/* /vm-print-report */}
         </>
