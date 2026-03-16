@@ -5,7 +5,7 @@ WORKDIR /app
 # Install dependencies
 COPY requirements.txt .
 COPY schema.sql .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --default-timeout=100 -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/

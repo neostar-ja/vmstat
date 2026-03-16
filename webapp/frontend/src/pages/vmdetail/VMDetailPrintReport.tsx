@@ -20,8 +20,10 @@ import type { Tab7Props } from './types';
 
 // ─── Chart dimensions ───────────────────────────────────────
 // Must be fixed pixels — no ResponsiveContainer
-const CW = 640; // chart width — full content width (1-column layout)
-const CH = 78;  // chart height — keeps 6 charts within one A4 page
+// A4 content width at @page margin 12mm×2 = 186mm
+// 186mm × (96dpi / 25.4) ≈ 703px, minus card border 5px + inner-padding 8px = 690
+const CW = 690; // chart width — fills full A4 content column
+const CH = 200; // chart height — 3 charts per page for clarity
 
 // ─── Helper math ────────────────────────────────────────────
 const numAvg = (data: any[], key: string) =>
@@ -282,7 +284,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         }
                         /* Center: page number — simple text, no border (margin boxes don't support border/bg reliably) */
                         @bottom-center {
-                            content: "[ หน้า " counter(page) " / 3 ]";
+                            content: "[ หน้า " counter(page) " / 4 ]";
                             font-size: 9pt;
                             font-weight: 900;
                             color: #1a3560;
@@ -290,7 +292,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         }
                         /* Right: document reference */
                         @bottom-right {
-                            content: "เอกสารอ้างอิง: WUH-IT-VMRPT-${YEAR}\\A Sangfor SCP VMStat © ${YEAR}";
+                            content: "เอกสารอ้างอิง: WUH-IT-VMRPT-${YEAR}\\A กลุ่มงานโครงสร้างพื้นฐานดิจิทัลทางการแพทย์ แผนกสารสนเทศ";
                             white-space: pre;
                             font-size: 7pt;
                             color: #94a3b8;
@@ -300,18 +302,30 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     }
 
                     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    body { background: white !important; }
-                    html, body, #root { height: auto !important; overflow: visible !important; }
+                    html, body { background: white !important; background-color: white !important; color: #0f172a !important; color-scheme: light !important; }
+                    html, body, #root { height: auto !important; overflow: visible !important; background: white !important; }
+
+                    /* Force light mode styles for print */
+                    :root { color-scheme: light !important; }
+                    .MuiBox-root, .MuiContainer-root, .MuiPaper-root, .MuiCard-root, .MuiGrid-root {
+                        background-color: transparent !important;
+                        background: none !important;
+                        color: #0f172a !important;
+                        box-shadow: none !important;
+                    }
 
                     nav, aside, header, footer,
                     .MuiDrawer-root, .MuiAppBar-root,
                     .MuiTabs-root, .MuiTab-root { display: none !important; }
                     .animate-fade-in { display: none !important; }
 
-                    /* Report root: pad top for fixed header only (footer is in @page margin) */
+                    /* Report root: full page content width, no overflow clipping */
                     .vm-print-report {
                         display: block !important;
                         padding-top: 38px !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                        overflow: visible !important;
                     }
 
                     /* Fixed running header — top of EVERY physical page */
@@ -326,7 +340,19 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         justify-content: space-between;
                         padding: 0 4mm;
                         z-index: 1000;
+                        overflow: hidden;
+                        white-space: nowrap;
                     }
+                    .print-rh-left {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        flex: 1;
+                        min-width: 0;
+                        overflow: hidden;
+                    }
+                    .print-rh-left span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .print-rh-right { white-space: nowrap; flex-shrink: 0; margin-left: 12px; }
 
                     /* Page break helpers */
                     .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
@@ -339,24 +365,39 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                     /* Recharts */
                     .recharts-wrapper, .recharts-surface { background: white !important; }
                     .recharts-cartesian-grid line { stroke: #e5e7eb !important; }
+
+                    /* Signature section — table cells must render with full height in print */
+                    .sig-card { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+                    /* Footer separator line — pinned above the @page bottom margin on every page */
+                    .print-footer-sep {
+                        position: fixed;
+                        bottom: 20mm;
+                        left: 0;
+                        right: 0;
+                        height: 2px;
+                        background: linear-gradient(90deg, #0f172a 0%, #1a3560 30%, #2563eb 65%, #38bdf8 100%);
+                        z-index: 900;
+                    }
                 }
             `}</style>
 
             {/* ── REPORT ROOT ── */}
             <div className="vm-print-report hidden print:block print:bg-white print:text-black font-sans text-sm w-full">
-
+                {/* Footer separator — visible above the @page bottom margin on every printed page */}
+                <div className="print-footer-sep" style={{ display: 'none' }} />
                 {/* ════════════════════════════════════════
                     FIXED RUNNING HEADER — every physical page top
                     ════════════════════════════════════════ */}
                 <div className="print-rh">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="print-rh-left">
                         <img src="/vmstat/wuh_logo.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} />
                         <span style={{ fontSize: 8, fontWeight: 800, color: '#1a3560', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             VM Specification &amp; Status Report
                         </span>
-                        <span style={{ fontSize: 8, color: '#64748b', marginLeft: 4 }}>· {vm?.name || '—'}</span>
+                        <span style={{ fontSize: 8, color: '#64748b' }}>· {vm?.name || '—'}</span>
                     </div>
-                    <span style={{ fontSize: 8, color: '#94a3b8', fontStyle: 'italic' }}>
+                    <span className="print-rh-right" style={{ fontSize: 7.5, color: '#94a3b8', fontStyle: 'italic' }}>
                         โรงพยาบาลศูนย์การแพทย์ มหาวิทยาลัยวลัยลักษณ์ · {printDate} {printTime} น.
                     </span>
                 </div>
@@ -546,25 +587,22 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                 </div>{/* /page-1 content */}
 
                 {/* ════════════════════════════════════════
-                    PAGE 2: Performance Charts (1-column)
+                    PAGE 2: Performance Charts Part 1 (charts 1–3)
                     ════════════════════════════════════════ */}
                 <div className="page-break-before">
                     <SecHead
                         num="3"
-                        title="ประสิทธิภาพการทำงาน (Performance Metrics)"
+                        title="ประสิทธิภาพการทำงาน (Performance Metrics) — ส่วนที่ 1/2"
                         sub={chartData.length > 0
-                            ? `${trLabel} (${trRange}) · ${chartData.length} Data Points`
+                            ? `${trLabel} (${trRange}) · ${chartData.length} Data Points · CPU / Memory / Disk IOPS`
                             : 'ไม่มีข้อมูลในช่วงเวลาที่เลือก'}
                         bgColor="#4c1d95"
                     />
                     {chartData.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
                             <ChartCard title="📊 1. CPU Usage (%)" unit="%" dataKey="cpu" data={chartData} color="#3b82f6" accentColor="#3b82f6" label="CPU %" kind="area" domainMax={100} />
                             <ChartCard title="📊 2. Memory Usage (%)" unit="%" dataKey="memory" data={chartData} color="#8b5cf6" accentColor="#8b5cf6" label="Memory %" kind="area" domainMax={100} />
                             <ChartCard title="📈 3. Disk IOPS (Read / Write)" unit=" IOPS" dataKey="diskRead" dataKey2="diskWrite" data={chartData} color="#0ea5e9" color2="#ec4899" accentColor="#0ea5e9" label="Read" label2="Write" kind="line" />
-                            <ChartCard title="📈 4. Storage Trend (GB Used)" unit=" GB" dataKey="storageUsedGB" data={chartData} color="#6366f1" accentColor="#6366f1" label="Used GB" kind="area" />
-                            <ChartCard title="🌐 5. Network Traffic (MB/s)" unit=" MB/s" dataKey="networkIn" dataKey2="networkOut" data={chartData} color="#10b981" color2="#f59e0b" accentColor="#10b981" label="RX (In)" label2="TX (Out)" kind="line" />
-                            <ChartCard title="⏱️ 6. Storage Usage (%)" unit="%" dataKey="storagePercent" data={chartData} color="#14b8a6" accentColor="#14b8a6" label="Storage %" kind="area" domainMax={100} />
                         </div>
                     ) : (
                         <div style={{ marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 4, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>
@@ -574,7 +612,32 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                 </div>{/* /page-2 charts */}
 
                 {/* ════════════════════════════════════════
-                    PAGE 3: Health & Backup + Signatures
+                    PAGE 3: Performance Charts Part 2 (charts 4–6)
+                    ════════════════════════════════════════ */}
+                <div className="page-break-before">
+                    <SecHead
+                        num="3"
+                        title="ประสิทธิภาพการทำงาน (Performance Metrics) — ส่วนที่ 2/2"
+                        sub={chartData.length > 0
+                            ? `${trLabel} (${trRange}) · Storage Trend / Network / Storage %`
+                            : 'ไม่มีข้อมูลในช่วงเวลาที่เลือก'}
+                        bgColor="#4c1d95"
+                    />
+                    {chartData.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                            <ChartCard title="📈 4. Storage Trend (GB Used)" unit=" GB" dataKey="storageUsedGB" data={chartData} color="#6366f1" accentColor="#6366f1" label="Used GB" kind="area" />
+                            <ChartCard title="🌐 5. Network Traffic (MB/s)" unit=" MB/s" dataKey="networkIn" dataKey2="networkOut" data={chartData} color="#10b981" color2="#f59e0b" accentColor="#10b981" label="RX (In)" label2="TX (Out)" kind="line" />
+                            <ChartCard title="⏱️ 6. Storage Usage (%)" unit="%" dataKey="storagePercent" data={chartData} color="#14b8a6" accentColor="#14b8a6" label="Storage %" kind="area" domainMax={100} />
+                        </div>
+                    ) : (
+                        <div style={{ marginTop: 12, border: '1px solid #e2e8f0', borderRadius: 4, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>
+                            ไม่มีข้อมูล Metrics (ส่วนที่ 2) — กรุณาเลือกช่วงเวลาก่อนพิมพ์รายงาน
+                        </div>
+                    )}
+                </div>{/* /page-3 charts */}
+
+                {/* ════════════════════════════════════════
+                    PAGE 4: Health & Backup
                     ════════════════════════════════════════ */}
                 <div className="page-break-before">
 
@@ -641,110 +704,7 @@ export default function VMDetailPrintReport(props: Tab7Props) {
                         </div>
                     </section>
 
-                    {/* ── AUTHORIZATION SIGNATURES ── */}
-                    <section className="break-inside-avoid mb-5">
-                        {/* Section header */}
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
-                            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #1a3560 100%)',
-                            borderRadius: '4px 4px 0 0',
-                        }}>
-                            <div style={{
-                                width: 32, height: 32, borderRadius: '50%',
-                                border: '2px solid rgba(255,255,255,0.4)',
-                                background: 'rgba(255,255,255,0.12)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                                fontSize: 14,
-                            }}>✍️</div>
-                            <div>
-                                <p style={{ color: 'white', fontSize: 12, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
-                                    ลายมือชื่อผู้รับรอง (Authorization Signatures)
-                                </p>
-                                <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 9, margin: 0, lineHeight: 1.3, marginTop: 2 }}>
-                                    เอกสารนี้มีผลบังคับใช้เมื่อได้รับการลงนามรับรองจากผู้มีอำนาจครบทั้ง 3 ฝ่ายแล้วเท่านั้น
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Signature cards container */}
-                        <div style={{
-                            border: '1.5px solid #e2e8f0', borderTop: 'none',
-                            borderRadius: '0 0 4px 4px', padding: 16,
-                            backgroundColor: '#f8fafc',
-                            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14,
-                        }}>
-                            {([
-                                { th: 'ผู้จัดทำรายงาน', en: 'Prepared By', color: '#1e40af', bg: '#eff6ff' },
-                                { th: 'ผู้ตรวจสอบรายงาน', en: 'Reviewed By', color: '#065f46', bg: '#f0fdf4' },
-                                { th: 'ผู้อนุมัติรายงาน', en: 'Approved By', color: '#7c2d12', bg: '#fff7ed' },
-                            ] as const).map(({ th, en, color, bg }) => (
-                                <div key={en} style={{
-                                    border: `1.5px solid ${color}30`, borderRadius: 6,
-                                    overflow: 'hidden', backgroundColor: 'white',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
-                                }}>
-                                    {/* Card header */}
-                                    <div style={{ backgroundColor: color, padding: '8px 14px' }}>
-                                        <p style={{ color: 'white', fontSize: 11, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>{en}</p>
-                                        <p style={{ color: 'rgba(255,255,255,0.78)', fontSize: 9, margin: '2px 0 0', lineHeight: 1.2 }}>{th}</p>
-                                    </div>
-
-                                    {/* Signature drawing area */}
-                                    <div style={{
-                                        height: 90, backgroundColor: bg,
-                                        borderBottom: `1.5px dashed ${color}35`,
-                                        display: 'flex', flexDirection: 'column',
-                                        alignItems: 'center', justifyContent: 'flex-end',
-                                        paddingBottom: 6,
-                                    }}>
-                                        <div style={{
-                                            width: '75%', borderBottom: `1.5px solid ${color}60`,
-                                            marginBottom: 4,
-                                        }} />
-                                        <span style={{ fontSize: 8, color: `${color}60`, fontStyle: 'italic' }}>
-                                            ลายเซ็นต์ / Signature
-                                        </span>
-                                    </div>
-
-                                    {/* Detail fields */}
-                                    <div style={{ padding: '10px 14px 14px' }}>
-                                        {([
-                                            { label: 'ชื่อ-นามสกุล', sub: 'Full Name' },
-                                            { label: 'ตำแหน่ง', sub: 'Position / Title' },
-                                            { label: 'วันที่', sub: 'Date (DD/MM/YYYY)' },
-                                        ]).map(({ label, sub }) => (
-                                            <div key={label} style={{ marginBottom: 12 }}>
-                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 3 }}>
-                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#334155' }}>{label}</span>
-                                                    <span style={{ fontSize: 8, color: '#94a3b8' }}>({sub})</span>
-                                                </div>
-                                                <div style={{
-                                                    borderBottom: `1px solid ${color}50`,
-                                                    width: '100%', height: 20,
-                                                }} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Note bar */}
-                        <div style={{
-                            marginTop: 10, padding: '7px 14px',
-                            backgroundColor: '#fefce8', border: '1px solid #fde047',
-                            borderRadius: 4, display: 'flex', alignItems: 'flex-start', gap: 8,
-                        }}>
-                            <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
-                            <p style={{ fontSize: 9, color: '#713f12', margin: 0, lineHeight: 1.6 }}>
-                                <strong>หมายเหตุ / Remark:</strong>{' '}
-                                เอกสารฉบับนี้จัดทำโดยระบบ VMStat อัตโนมัติ และมีผลบังคับเมื่อได้รับการลงนามครบทั้ง 3 ฝ่ายแล้วเท่านั้น ·
-                                This document is system-generated and becomes effective only upon completion of all three authorized signatures.
-                            </p>
-                        </div>
-                    </section>
-
-                </div>{/* /page-3 */}
+                </div>{/* /page-4 health */}
 
             </div>{/* /vm-print-report */}
         </>
