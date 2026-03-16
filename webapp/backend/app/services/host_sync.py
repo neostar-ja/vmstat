@@ -407,27 +407,39 @@ class HostSyncService:
         vm_stats = host_info.get("vm", {})
         alarms = host_info.get("alarms", {})
         
+        host_name = host_info.get("host_name", "")
+        cpu_usage_ratio = cpu.get("usage_ratio") or 0.0
+        memory_usage_ratio = memory.get("usage_ratio") or 0.0
+        vm_total = vm_stats.get("total", 0)
+        vm_running = vm_stats.get("running", 0)
+        
         try:
-            # Insert only supported / existing columns for metrics.host_metrics (schema varies across deployments)
+            # แทรกข้อมูล metrics ลง host_metrics table
             self.db.execute(
                 text("""
                     INSERT INTO metrics.host_metrics (
-                        host_id, cpu_total_mhz, cpu_used_mhz, cpu_ratio,
-                        memory_total_mb, memory_used_mb, memory_ratio, collected_at
+                        host_id, collected_at,
+                        cpu_total_mhz, cpu_used_mhz, cpu_ratio,
+                        memory_total_mb, memory_used_mb, memory_ratio,
+                        vm_count, vm_running_count
                     ) VALUES (
-                        :host_id, :cpu_total_mhz, :cpu_used_mhz, :cpu_ratio,
-                        :memory_total_mb, :memory_used_mb, :memory_ratio, :collected_at
+                        :host_id, :collected_at,
+                        :cpu_total_mhz, :cpu_used_mhz, :cpu_ratio,
+                        :memory_total_mb, :memory_used_mb, :memory_ratio,
+                        :vm_count, :vm_running_count
                     )
                 """),
                 {
                     "host_id": host_id,
-                    "cpu_total_mhz": cpu.get("total_mhz"),
-                    "cpu_used_mhz": cpu.get("used_mhz"),
-                    "cpu_ratio": cpu.get("usage_ratio"),
-                    "memory_total_mb": memory.get("total_mb"),
-                    "memory_used_mb": memory.get("used_mb"),
-                    "memory_ratio": memory.get("usage_ratio"),
-                    "collected_at": collected_at
+                    "collected_at": collected_at,
+                    "cpu_total_mhz": cpu.get("total_mhz") or 0.0,
+                    "cpu_used_mhz": cpu.get("used_mhz") or 0.0,
+                    "cpu_ratio": cpu_usage_ratio,
+                    "memory_total_mb": memory.get("total_mb") or 0.0,
+                    "memory_used_mb": memory.get("used_mb") or 0.0,
+                    "memory_ratio": memory_usage_ratio,
+                    "vm_count": vm_total,
+                    "vm_running_count": vm_running
                 }
             )
         except Exception as e:

@@ -11,6 +11,7 @@ import VMListPage3 from './pages/VMListPage3';
 import VMDetailPage2 from './pages/VMDetailPage2';
 import GroupsPage from './pages/GroupsPage';
 import HostsPage from './pages/HostsPageNew';
+import HostDetailPage from './pages/HostDetailPage';
 import AlarmsPage from './pages/AlarmsPage';
 import AlarmDetailPage from './pages/AlarmDetailPage';
 import DataStorePage from './pages/DataStorePage';
@@ -184,6 +185,9 @@ export default function App() {
                     } />
                     <Route path="/hosts" element={
                         <PermissionRoute menuPath="/hosts"><HostsPage /></PermissionRoute>
+                    } />
+                    <Route path="/hosts/:hostId" element={
+                        <PermissionRoute menuPath="/hosts"><HostDetailPage /></PermissionRoute>
                     } />
                     <Route path="/alarms" element={
                         <PermissionRoute menuPath="/alarms"><AlarmsPage /></PermissionRoute>

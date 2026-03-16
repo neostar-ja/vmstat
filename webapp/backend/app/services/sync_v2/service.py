@@ -10,6 +10,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from .sangfor_client import SangforClient, SangforCredentials
 from .db_handler import SyncDbHandler
@@ -286,115 +287,67 @@ class SyncServiceV2:
             handler.log_job_detail(job_id, "info", "Starting Host Sync...", step="hosts")
             
             try:
-                # 1. Run connect_hosts.py to generate JSON
-                import subprocess
-                import os
-                import json
+                from app.services.sync_v2.host_aggregator import HostResourceAggregator
                 from app.services.host_sync import HostSyncService
-                
-                script_path = "/opt/code/sangfor_scp/connect_hosts.py"
-                json_path = "/opt/code/sangfor_scp/host_resources.json"
-                
-                if os.path.exists(script_path):
-                    handler.log_job_detail(job_id, "info", "Executing connect_hosts.py collector...", step="hosts_collect")
-                    
-                    # Run script with timeout
-                    # Ensure we use the correct python environment
-                    proc = subprocess.run(
-                        ["python3", script_path], 
-                        capture_output=True, 
-                        text=True, 
-                        timeout=180, # Increased timeout
-                        cwd="/opt/code/sangfor_scp" # Ensure CWD is correct for .env loading
-                    )
-                    
-                    if proc.returncode != 0:
-                        raise Exception(f"connect_hosts.py failed: {proc.stderr}")
-                        
-                    handler.log_job_detail(job_id, "info", "Collector finished successfully", step="hosts_collect")
-                    
-                    # 2. Read JSON
-                    if os.path.exists(json_path):
-                        with open(json_path, 'r') as f:
-                            hosts_data = json.load(f)
-                        
-                        # 3. Aggregation and Sync
-                        # Get AZ mapping
-                        az_result = db.execute(text("SELECT az_name, az_id FROM sangfor.az_master WHERE is_active = TRUE"))
-                        az_mapping = {row[0]: row[1] for row in az_result.fetchall()}
-                        
-                        # Use HostSyncService if available, otherwise just rely on our aggregation here?
-                        # The code referenced HostSyncService but I don't see it in the file list I checked earlier?
-                        # I should probably just implement the logic here or check if HostSyncService exists.
-                        # Assuming it does based on import... 
-                        # Update: I didn't see it in list_dir of services/sync_v2 but maybe it's effectively impored?
-                        # Actually, let's look at `app.services` dir.
-                        # If Import fails, I'll fallback to manual extraction.
-                        
-                        # Let's handle Host Alarms specifically for `other_alarms`
-                        host_alarms_to_sync = []
-                        for host_id, h_data in hosts_data.items():
-                            alarms_data = h_data.get("alarms", {}).get("details", [])
-                            for alarm in alarms_data:
-                                host_alarms_to_sync.append({
-                                    "source": "host",
-                                    "resource_id": host_id,
-                                    "resource_name": h_data.get("host_name"),
-                                    "severity": alarm.get("level") or alarm.get("severity"),
-                                    "title": alarm.get("title") or alarm.get("name") or "Host Alarm",
-                                    "description": self._safe_get_description(alarm),
-                                    "status": "open",
-                                    "object_type": "host",
-                                    "begin_time": alarm.get("begin_time") or alarm.get("start_time")
-                                })
-                        
-                        if host_alarms_to_sync:
-                            h_alarm_count = handler.upsert_other_alarms(host_alarms_to_sync)
-                            stats["host_alarms_synced"] = h_alarm_count
-                        
-                        # Now continue with HostSyncService logic if it exists, or just minimal Upsertes
-                        # I'll keep the import but wrap in try/except or just assume it works as it was there?
-                        # wait, the original code had: `from app.services.host_sync import HostSyncService`
-                        # If I didn't verify this file exists, this might crash.
-                        # I'll stick to what was there but add the alarm sync part BEFORE it.
-                        
-                        try:
-                            from app.services.host_sync import HostSyncService
-                            host_sync_svc = HostSyncService(db)
-                            host_stats = host_sync_svc.sync_hosts(hosts_data, az_mapping, handler, job_id)
-                            
-                            # Merge stats
-                            stats["hosts_synced"] = host_stats["inserted"] + host_stats["updated"]
-                            stats["alarms_synced"] += host_stats.get("alarms_synced", 0)
-                            
-                            # 4. Collect Metrics
-                            collected_at = datetime.utcnow()
-                            for host_id, host_info in hosts_data.items():
-                                 try:
-                                     host_sync_svc.insert_host_metrics(host_id, host_info, collected_at)
-                                 except Exception as metric_err:
-                                     logger.warning(f"Failed to insert host metrics: {metric_err}")
-                                     
-                        except ImportError:
-                            logger.warning("HostSyncService not found, skipping deep host sync relying strictly on connect_hosts.py data structure.")
-                            # Fallback: Just upsert hosts if we can?
-                            # For now, just logging.
 
-                        handler.log_job_detail(job_id, "info", f"Synced {len(hosts_data)} hosts", step="hosts")
-                        
-                    else:
-                         handler.log_job_detail(job_id, "warning", "host_resources.json not found after execution", step="hosts")
-                else:
-                    handler.log_job_detail(job_id, "warning", "connect_hosts.py script not found", step="hosts")
-                    
+                # Fetch required host data natively
+                handler.log_job_detail(job_id, "info", "Fetching raw host data from SCP...", step="hosts_collect")
+                hosts_raw = client.fetch_hosts()
+                datastores_raw = client.fetch_datastores()
+                
+                alarms_raw = client.get_active_alarms()
+                
+                handler.log_job_detail(job_id, "info", "Aggregating host resources natively...", step="hosts_collect")
+                aggregator = HostResourceAggregator(hosts_raw, servers, datastores_raw, alarms_raw)
+                hosts_data = aggregator.build()
+                
+                # Get AZ mapping
+                az_result = db.execute(text("SELECT az_name, az_id FROM sangfor.az_master WHERE is_active = TRUE"))
+                az_mapping = {row[0]: row[1] for row in az_result.fetchall()}
+
+                # Let's handle Host Alarms specifically for `other_alarms`
+                host_alarms_to_sync = []
+                for host_id, h_data in hosts_data.items():
+                    alarms_data = h_data.get("alarms", {}).get("details", [])
+                    for alarm in alarms_data:
+                        host_alarms_to_sync.append({
+                            "source": "host",
+                            "resource_id": host_id,
+                            "resource_name": h_data.get("host_name"),
+                            "severity": alarm.get("level") or alarm.get("severity"),
+                            "title": alarm.get("title") or alarm.get("name") or "Host Alarm",
+                            "description": self._safe_get_description(alarm),
+                            "status": "open",
+                            "object_type": "host",
+                            "begin_time": alarm.get("begin_time") or alarm.get("start_time")
+                        })
+                
+                if host_alarms_to_sync:
+                    h_alarm_count = handler.upsert_other_alarms(host_alarms_to_sync)
+                    stats["host_alarms_synced"] = h_alarm_count
+
+                host_sync_svc = HostSyncService(db)
+                host_stats = host_sync_svc.sync_hosts(hosts_data, az_mapping, handler, job_id)
+                
+                # Merge stats
+                stats["hosts_synced"] = host_stats.get("inserted", 0) + host_stats.get("updated", 0)
+                stats["alarms_synced"] = stats.get("alarms_synced", 0) + host_stats.get("alarms_synced", 0)
+                
+                # 4. Collect Metrics
+                collected_at = datetime.utcnow()
+                for host_id, host_info in hosts_data.items():
+                    try:
+                        host_sync_svc.insert_host_metrics(host_id, host_info, collected_at)
+                    except Exception as metric_err:
+                        logger.warning(f"Failed to insert host metrics: {metric_err}")
+                
+                handler.log_job_detail(job_id, "info", f"Synced {len(hosts_data)} hosts", step="hosts")
+                
             except Exception as host_err:
                 logger.error(f"Host sync failed: {host_err}")
                 handler.log_job_detail(job_id, "warning", f"Host sync skipped: {host_err}", step="hosts", error_details={"error": str(host_err)})
+                handler.commit() # Fix silent rollback bug
 
-            # Safety reset session to ensure clean state
-            db.close()
-            db = SessionLocal()
-            handler.db = db
             
             # Step 5: Complete job
             handler.update_job_progress(job_id, 95, "finalizing")

@@ -226,6 +226,50 @@ class SangforClient:
             return result
         
         return []
+
+    def fetch_hosts(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all hosts from SCP API
+        Returns list of host dictionaries
+        """
+        if not self._token:
+            raise RuntimeError("Not authenticated. Call authenticate() first.")
+        
+        logger.info("🖥️ Fetching hosts from SCP...")
+        
+        endpoints = [
+            "/janus/20190725/hosts",
+            "/janus/20180725/hosts"
+        ]
+        
+        for endpoint in endpoints:
+            url = f"{self.credentials.base_url}{endpoint}"
+            headers = {
+                "Authorization": f"Token {self._token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            try:
+                response = requests.get(url, headers=headers, verify=False, timeout=self.timeout)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    hosts = self._extract_data(result)
+                    # For hosts, sometimes the key is 'hosts' instead of generic extract_data
+                    if not hosts and "hosts" in result:
+                        hosts = result["hosts"]
+                    
+                    if hosts:
+                        logger.info(f"✅ Fetched {len(hosts)} hosts")
+                        return hosts
+                        
+            except requests.RequestException as e:
+                logger.error(f"Error fetching hosts from {endpoint}: {e}")
+                continue
+        
+        logger.warning("⚠️ No hosts found from any endpoint")
+        return []
     
     def fetch_datastores(self) -> List[Dict[str, Any]]:
         """

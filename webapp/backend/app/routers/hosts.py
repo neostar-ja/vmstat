@@ -259,31 +259,93 @@ async def get_host_health_score(
 async def get_host_metrics_history(
     host_id: str,
     hours: int = Query(24, ge=1, le=168, description="Hours of history to retrieve"),
+    time_range: Optional[str] = Query(None, description="Time range: 1h, 6h, 24h, 7d, 30d"),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
     ประวัติ metrics ของ host
+    รองรับ time_range parameter เพิ่มเติม (1h, 6h, 24h, 7d, 30d)
     """
-    query = """
+    # แปลง time_range เป็น hours
+    time_range_map = {"1h": 1, "6h": 6, "24h": 24, "7d": 168, "30d": 720}
+    if time_range and time_range in time_range_map:
+        hours = time_range_map[time_range]
+    
+    # แก้ bug: ใช้ f-string แทน parameterized interval เพราะ PostgreSQL ไม่รองรับ :param ใน INTERVAL string
+    # รองรับทั้งคอลัมน์แบบเก่า (cpu_usage_ratio) และใหม่ (cpu_ratio)
+    query = f"""
         SELECT 
             collected_at,
-            cpu_usage_ratio * 100 as cpu_usage_pct,
-            memory_usage_ratio * 100 as memory_usage_pct,
-            cpu_used_mhz,
-            cpu_total_mhz,
-            memory_used_mb,
-            memory_total_mb,
-            vm_running,
-            vm_total,
-            alarm_count
+            COALESCE(cpu_ratio, 0) * 100 AS cpu_usage_pct,
+            COALESCE(memory_ratio, 0) * 100 AS memory_usage_pct,
+            COALESCE(cpu_used_mhz, 0) AS cpu_used_mhz,
+            COALESCE(cpu_total_mhz, 0) AS cpu_total_mhz,
+            COALESCE(memory_used_mb, 0) AS memory_used_mb,
+            COALESCE(memory_total_mb, 0) AS memory_total_mb,
+            COALESCE(vm_running_count, 0) AS vm_running,
+            COALESCE(vm_count, 0) AS vm_total,
+            0 AS alarm_count
         FROM metrics.host_metrics
         WHERE host_id = :host_id
-            AND collected_at >= NOW() - INTERVAL ':hours hours'
+            AND collected_at >= NOW() - INTERVAL '{hours} hours'
         ORDER BY collected_at ASC
     """
     
-    result = db.execute(text(query), {"host_id": host_id, "hours": hours})
+    result = db.execute(text(query), {"host_id": host_id})
+    rows = result.fetchall()
+    
+    return [
+        {
+            "collected_at": row.collected_at.isoformat() if hasattr(row.collected_at, 'isoformat') else row.collected_at,
+            "cpu_usage_pct": float(row.cpu_usage_pct or 0),
+            "memory_usage_pct": float(row.memory_usage_pct or 0),
+            "cpu_used_mhz": float(row.cpu_used_mhz or 0),
+            "cpu_total_mhz": float(row.cpu_total_mhz or 0),
+            "memory_used_mb": float(row.memory_used_mb or 0),
+            "memory_total_mb": float(row.memory_total_mb or 0),
+            "vm_running": int(row.vm_running or 0),
+            "vm_total": int(row.vm_total or 0),
+            "alarm_count": int(row.alarm_count or 0),
+        }
+        for row in rows
+    ]
+
+
+@router.get("/{host_id}/vms")
+async def get_host_vms(
+    host_id: str,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    ดึงรายการ VM ที่กำลังทำงานบน Host นี้
+    """
+    query = """
+        SELECT 
+            CAST(v.vm_uuid AS text) AS vm_uuid,
+            v.vm_id,
+            v.name,
+            v.power_state,
+            v.status,
+            v.cpu_cores,
+            ROUND(v.memory_total_mb::numeric, 0) AS memory_total_mb,
+            ROUND(v.memory_usage::numeric * 100, 1) AS memory_usage_pct,
+            ROUND(v.cpu_usage::numeric * 100, 1) AS cpu_usage_pct,
+            v.os_display_name,
+            v.group_name,
+            CAST(v.ip_address AS text) AS ip_address,
+            v.last_metrics_at
+        FROM analytics.mv_vm_overview v
+        JOIN sangfor.vm_master m ON v.vm_uuid = m.vm_uuid
+        WHERE m.host_id = :host_id
+          AND v.is_deleted = FALSE
+        ORDER BY v.power_state DESC, v.name ASC
+        LIMIT :limit
+    """
+    
+    result = db.execute(text(query), {"host_id": host_id, "limit": limit})
     return [dict(row._mapping) for row in result.fetchall()]
 
 

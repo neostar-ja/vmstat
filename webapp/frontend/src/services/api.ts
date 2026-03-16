@@ -295,3 +295,37 @@ export const metricsApi = {
     // Retention Info
     getRetentionInfo: () => api.get('/metrics/retention-info'),
 };
+
+// Hosts API (Host Management)
+export const hostsApi = {
+    /** รายการ Host ทั้งหมดพร้อมสถานะล่าสุด */
+    getList: (params?: {
+        az?: string;
+        cluster?: string;
+        status?: string;
+        health?: string;
+        limit?: number;
+    }) => api.get('/hosts/', { params }),
+
+    /** สถิติโดยรวมของ Hosts */
+    getStats: () => api.get('/hosts/stats'),
+
+    /** รายชื่อ Cluster ทั้งหมด */
+    getClusters: () => api.get('/hosts/clusters/list'),
+
+    /** รายละเอียดแบบเจาะลึกของ Host */
+    getDetail: (hostId: string) => api.get(`/hosts/${hostId}`),
+
+    /** ประวัติ Metrics ย้อนหลังของ Host สำหรับวาดกราฟ */
+    getMetrics: (hostId: string, params?: {
+        hours?: number;
+        time_range?: string;  // 1h, 6h, 24h, 7d, 30d
+    }) => api.get(`/hosts/${hostId}/metrics`, { params }),
+
+    /** รายการ VM ที่รันบน Host นี้ */
+    getVMs: (hostId: string, limit = 100) =>
+        api.get(`/hosts/${hostId}/vms`, { params: { limit } }),
+
+    /** คะแนนสุขภาพของ Host (0-100) */
+    getHealthScore: (hostId: string) => api.get(`/hosts/${hostId}/health-score`),
+};
